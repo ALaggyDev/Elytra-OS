@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = ["kernel"]
+
+[package]
+name = "os"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.53", features = ["derive"] }
+pathdiff = "0.2.3"
+
+[build-dependencies]
+kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none" }
+bootloader = "0.11.12"
