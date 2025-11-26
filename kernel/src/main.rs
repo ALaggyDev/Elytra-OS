@@ -1,9 +1,11 @@
-#![no_std] // don't link the Rust standard library
-#![no_main] // disable all Rust-level entry points
+#![no_std]
+#![no_main]
+#![allow(static_mut_refs)] // we allow references to static mut, because the kernel often uses global mutable state
 
 use bootloader_api::{BootInfo, entry_point};
 use core::panic::PanicInfo;
 
+mod gdt;
 mod helper;
 mod io;
 mod startup;

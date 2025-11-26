@@ -1,6 +1,6 @@
 use bootloader_api::BootInfo;
 
-use crate::{helper, io::serial, printk, printkln};
+use crate::{gdt, helper, io::serial, printk, printkln};
 
 pub(crate) fn kernel_main(_: &'static mut BootInfo) -> ! {
     init();
@@ -14,6 +14,7 @@ pub(crate) fn kernel_main(_: &'static mut BootInfo) -> ! {
 fn init() {
     unsafe {
         serial::init();
+        gdt::init();
     }
 }
 
@@ -21,5 +22,4 @@ fn init() {
 fn test() {
     printk!("printk works!\n");
     printkln!("Here is a number: {}", 42);
-
 }

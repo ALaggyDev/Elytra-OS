@@ -76,7 +76,7 @@ impl fmt::Write for Serial {
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     unsafe {
-        (&mut *(&raw mut SERIAL)).write_fmt(args).unwrap();
+        (&mut SERIAL).write_fmt(args).unwrap();
     }
 }
 
