@@ -5,6 +5,8 @@ use bootloader_api::{BootInfo, entry_point};
 use core::panic::PanicInfo;
 
 mod helper;
+mod io;
+mod startup;
 
 /// This function is called on panic.
 #[panic_handler]
@@ -14,7 +16,7 @@ fn panic(_: &PanicInfo) -> ! {
 
 /// Entry point for the kernel.
 fn kernel_entry(boot_info: &'static mut BootInfo) -> ! {
-    helper::hcf();
+    startup::kernel_main(boot_info);
 }
 
 entry_point!(kernel_entry);
