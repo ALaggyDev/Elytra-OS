@@ -1,9 +1,32 @@
 use core::{arch::asm, mem};
 
+use arbitrary_int::{u4, u20};
+use bitbybit::bitfield;
+
+#[bitfield(u64)]
+struct Entry {
+    #[bits([0..=15, 48..=51], rw)]
+    limit: u20,
+
+    #[bits([16..=39, 56..=63], rw)]
+    base: u32,
+
+    #[bits(40..=47, rw)]
+    access: u8,
+
+    #[bits(52..=55, rw)]
+    flags: u4,
+}
+
 const SIZE_OF_GDT: usize = 5;
 
-#[derive(Debug)]
-struct Gdt([u64; SIZE_OF_GDT]);
+pub const KERNEL_CODE_SELECTOR: u16 = 0x08;
+pub const KERNEL_DATA_SELECTOR: u16 = 0x10;
+pub const USER_CODE_SELECTOR: u16 = 0x18 | 0x03;
+pub const USER_DATA_SELECTOR: u16 = 0x20 | 0x03;
+
+#[repr(C)]
+struct Gdt([Entry; SIZE_OF_GDT]);
 
 #[repr(C, packed)]
 struct Gdtr {
@@ -11,43 +34,35 @@ struct Gdtr {
     base: *const Gdt,
 }
 
-static mut GDT: Gdt = Gdt([0; SIZE_OF_GDT]);
+static mut GDT: Gdt = Gdt([Entry::ZERO; SIZE_OF_GDT]);
 
 static mut GDTR: Gdtr = Gdtr {
     size: 0,
     base: core::ptr::null(),
 };
 
-pub const KERNEL_CODE_SELECTOR: u16 = 0x08;
-pub const KERNEL_DATA_SELECTOR: u16 = 0x10;
-pub const USER_CODE_SELECTOR: u16 = 0x18 | 0x03;
-pub const USER_DATA_SELECTOR: u16 = 0x20 | 0x03;
-
-fn segment_descriptor(base: u32, limit: u32, access: u8, flags: u8) -> u64 {
-    let mut descriptor: u64 = 0;
-    descriptor |= (limit as u64) & 0xFFFF; // Limit bits 0-15
-    descriptor |= ((base as u64) & 0xFFFFFF) << 16; // Base bits 0-23
-    descriptor |= (access as u64) << 40; // Access byte
-    descriptor |= (((limit as u64) >> 16) & 0xF) << 48; // Limit bits 16-19
-    descriptor |= ((flags as u64) & 0xF) << 52; // Flags
-    descriptor |= (((base as u64) >> 24) & 0xFF) << 56; // Base bits 24-31
-    return descriptor;
-}
-
 pub unsafe fn init() {
     // Setup gdt
 
     let gdt = unsafe { &mut GDT };
     // Null segment
-    gdt.0[0] = 0;
+    gdt.0[0] = Entry::ZERO;
     // Kernel code segment
-    gdt.0[1] = segment_descriptor(0, 0, 0b10011011, 0b0010);
+    gdt.0[1] = Entry::ZERO
+        .with_access(0b10011011)
+        .with_flags(u4::new(0b0010));
     // Kernel data segment
-    gdt.0[2] = segment_descriptor(0, 0, 0b10010011, 0b0000);
+    gdt.0[2] = Entry::ZERO
+        .with_access(0b10010011)
+        .with_flags(u4::new(0b0000));
     // User code segment
-    gdt.0[3] = segment_descriptor(0, 0, 0b11111011, 0b0010);
+    gdt.0[3] = Entry::ZERO
+        .with_access(0b11111011)
+        .with_flags(u4::new(0b0010));
     // User data segment
-    gdt.0[4] = segment_descriptor(0, 0, 0b11110011, 0b0000);
+    gdt.0[4] = Entry::ZERO
+        .with_access(0b11110011)
+        .with_flags(u4::new(0b0000));
 
     // Setup gdtr
 
