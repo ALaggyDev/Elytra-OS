@@ -1,9 +1,10 @@
 use core::arch::asm;
 
-use crate::consts;
+use crate::{consts, printkln};
 
 /// Halt and Catch Fire.
 pub fn hcf() -> ! {
+    printkln!("Halting CPU...");
     loop {
         unsafe { asm!("hlt", options(nomem, nostack, preserves_flags)) };
     }
