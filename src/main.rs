@@ -73,7 +73,10 @@ fn main() {
             gdb_cmd = Command::new("cmd.exe");
             gdb_cmd.args(["/C", "start", "wsl.exe", "--exec", "gdb"]);
         }
-        gdb_cmd.args(["-ex", &format!("file {} -o 0x10000000000", fix_wsl_path(kernel_path))]);
+        gdb_cmd.args([
+            "-ex",
+            &format!("file {} -o 0xffffffff80000000", fix_wsl_path(kernel_path)),
+        ]);
         gdb_cmd.args(["-x", "script.gdb"]);
 
         gdb_cmd.spawn().expect("failed to start gdb");
