@@ -19,3 +19,23 @@ pub fn p2v(addr: usize) -> usize {
 pub fn v2p(addr: usize) -> usize {
     addr - consts::PHYS_MEM_OFFSET
 }
+
+#[inline]
+pub fn align_down(addr: usize, align: usize) -> usize {
+    addr / align * align
+}
+
+#[inline]
+pub fn align_up(addr: usize, align: usize) -> usize {
+    align_down(addr + (align - 1), align)
+}
+
+#[inline]
+pub fn log2_floor(x: usize) -> usize {
+    x.ilog2() as usize
+}
+
+#[inline]
+pub fn log2_ceil(x: usize) -> usize {
+    log2_floor(x) + !x.is_power_of_two() as usize
+}
