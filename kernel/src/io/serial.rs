@@ -8,48 +8,42 @@ pub unsafe fn init() -> bool {
     unsafe {
         outb(PORT + 1, 0x00); // Disable all interrupts
         outb(PORT + 3, 0x80); // Enable DLAB (set baud rate divisor)
-        outb(PORT + 0, 0x03); // Set divisor to 3 (lo byte) 38400 baud
+        outb(PORT, 0x03); // Set divisor to 3 (lo byte) 38400 baud
         outb(PORT + 1, 0x00); //                  (hi byte)
         outb(PORT + 3, 0x03); // 8 bits, no parity, one stop bit
         outb(PORT + 2, 0xC7); // Enable FIFO, clear them, with 14-byte threshold
         outb(PORT + 4, 0x0B); // IRQs enabled, RTS/DSR set
         outb(PORT + 4, 0x1E); // Set in loopback mode, test the serial chip
-        outb(PORT + 0, 0xAE); // Test serial chip (send byte 0xAE and check if serial returns same byte)
+        outb(PORT, 0xAE); // Test serial chip (send byte 0xAE and check if serial returns same byte)
 
         // Check if serial is faulty (i.e: not same byte as sent)
-        if inb(PORT + 0) != 0xAE {
+        if inb(PORT) != 0xAE {
             return false;
         }
 
         // If serial is not faulty set it in normal operation mode
         // (not-loopback with IRQs enabled and OUT#1 and OUT#2 bits enabled)
         outb(PORT + 4, 0x0F);
-        return true;
+        true
     }
 }
 
 pub fn received() -> bool {
-    unsafe {
-        return (inb(PORT + 5) & 1) != 0;
-    }
+    unsafe { (inb(PORT + 5) & 1) != 0 }
 }
 
 pub fn read() -> u8 {
     while !received() {}
-    return unsafe { inb(PORT) };
+    unsafe { inb(PORT) }
 }
 
 pub fn can_write() -> bool {
-    unsafe {
-        return (inb(PORT + 5) & 0x20) != 0;
-    }
+    unsafe { (inb(PORT + 5) & 0x20) != 0 }
 }
 
 pub fn write_u8(val: u8) {
     while !can_write() {}
-    unsafe {
-        outb(PORT, val);
-    }
+    unsafe { outb(PORT, val) }
 }
 
 pub fn write_str(s: &str) {
@@ -76,7 +70,7 @@ impl fmt::Write for Serial {
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     unsafe {
-        (&mut SERIAL).write_fmt(args).unwrap();
+        SERIAL.write_fmt(args).unwrap();
     }
 }
 

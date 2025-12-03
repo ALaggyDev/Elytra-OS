@@ -10,7 +10,7 @@ pub struct InterruptStackFrame {
     pub ss: usize,
 }
 
-const INTERRUPT_NAMES: [&'static str; 22] = [
+const INTERRUPT_NAMES: [&str; 22] = [
     "Division Error",
     "Debug Exception",
     "NMI Interrupt",

@@ -50,7 +50,7 @@ pub unsafe fn init(memory: *mut [u8]) {
     let final_ptr = align_up(cur_ptr as usize, SIZE_OF_MAX_ORDER) as *mut u8;
     let final_len = memory.addr() + memory.len() - final_ptr as usize;
 
-    allocator.memory = unsafe { slice::from_raw_parts_mut(final_ptr, final_len) };
+    allocator.memory = ptr::slice_from_raw_parts_mut(final_ptr, final_len);
     allocator.used = 0;
 }
 

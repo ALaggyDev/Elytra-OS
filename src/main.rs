@@ -79,9 +79,10 @@ fn main() {
         ]);
         gdb_cmd.args(["-x", "script.gdb"]);
 
-        gdb_cmd.spawn().expect("failed to start gdb");
+        let mut gdb = gdb_cmd.spawn().expect("failed to start gdb");
+        gdb.wait().expect("failed to wait on gdb");
     }
 
     let status = child.wait().expect("failed to wait on qemu");
-    print!("QEMU exited: {}\n", status);
+    println!("QEMU exited: {}", status);
 }
