@@ -8,14 +8,16 @@ use core::panic::PanicInfo;
 
 use crate::consts::{KERNEL_OFFSET, PHYS_MEM_OFFSET};
 
-mod consts;
-mod gdt;
-mod helper;
-mod idt;
-mod io;
-mod isr;
-mod page_table;
-mod startup;
+pub mod consts;
+pub mod gdt;
+pub mod helper;
+pub mod idt;
+pub mod io;
+pub mod isr;
+pub mod mem;
+pub mod primitives;
+pub mod startup;
+pub mod test;
 
 /// This function is called on panic.
 #[panic_handler]

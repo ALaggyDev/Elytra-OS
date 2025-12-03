@@ -1,27 +1,34 @@
-use bootloader_api::BootInfo;
+use core::ptr::slice_from_raw_parts_mut;
+
+use bootloader_api::{BootInfo, info::MemoryRegionKind};
 
 use crate::{
-    gdt, helper, idt,
+    gdt,
+    helper::{self, p2v},
+    idt,
     io::{port::outb, serial},
-    page_table, printk, printkln,
+    mem::{buddy, page_table},
+    printkln, test,
 };
 
-pub(crate) fn kernel_main(_: &'static mut BootInfo) -> ! {
-    init();
+pub(crate) fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+    init(boot_info);
 
-    test();
+    test::test();
 
     helper::hcf();
 }
 
 // Initialize the kernel.
-fn init() {
+fn init(boot_info: &'static mut BootInfo) {
     unsafe {
         pic_disable();
         serial::init();
         unmap_lower_half();
         gdt::init();
         idt::init();
+
+        init_buddy_allocator(boot_info);
     }
 }
 
@@ -50,8 +57,24 @@ fn unmap_lower_half() {
     }
 }
 
-// Run test.
-fn test() {
-    printk!("printk works!\n");
-    printkln!("Here is a number: {}", 42);
+fn init_buddy_allocator(boot_info: &'static mut BootInfo) {
+    let biggest_region = boot_info
+        .memory_regions
+        .iter()
+        .filter(|region| region.kind == MemoryRegionKind::Usable)
+        .max_by_key(|region| region.end - region.start)
+        .unwrap();
+
+    printkln!(
+        "Initializing buddy allocator with region: {:#x} - {:#x}",
+        biggest_region.start,
+        biggest_region.end
+    );
+
+    unsafe {
+        buddy::init(slice_from_raw_parts_mut(
+            p2v(biggest_region.start as usize) as *mut u8,
+            (biggest_region.end - biggest_region.start) as usize,
+        ));
+    }
 }

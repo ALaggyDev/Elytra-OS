@@ -6,6 +6,7 @@ use bitbybit::{bitenum, bitfield};
 use crate::{gdt::KERNEL_CODE_SELECTOR, isr};
 
 #[bitenum(u4)]
+#[allow(dead_code)]
 enum GateType {
     InterruptGate = 0b1110,
     TrapGate = 0b1111,

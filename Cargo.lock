@@ -316,6 +316,7 @@ version = "0.1.0"
 dependencies = [
  "arbitrary-int 2.0.0",
  "bitbybit",
+ "bitvec",
  "bootloader_api",
 ]
 
