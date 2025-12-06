@@ -5,7 +5,7 @@ use bitvec::slice::BitSlice;
 use crate::{
     consts::PAGE_SIZE,
     helper::{align_up, log2_ceil},
-    primitives::ListHead,
+    primitives::DoublyListHead,
 };
 
 pub const MAX_ORDER: usize = 10;
@@ -13,7 +13,7 @@ pub const MAX_ORDER: usize = 10;
 pub const SIZE_OF_MAX_ORDER: usize = PAGE_SIZE << MAX_ORDER;
 
 struct Bucket {
-    free_list: ListHead,
+    free_list: DoublyListHead,
     bitmap: *mut BitSlice<u8>,
 }
 
@@ -38,7 +38,7 @@ pub unsafe fn init(memory: *mut [u8]) {
             slice::from_raw_parts_mut(cur_ptr, bitmap_size)
         });
 
-        unsafe { ListHead::new_empty(&raw mut allocator.buckets[order].free_list) };
+        unsafe { DoublyListHead::new_empty(&raw mut allocator.buckets[order].free_list) };
         allocator.buckets[order].bitmap = bitmap as *mut _;
 
         cur_num *= 2;
@@ -72,12 +72,12 @@ pub unsafe fn alloc_pages_order(order: usize) -> *mut u8 {
     let bucket = &mut allocator.buckets[order];
 
     // Search for a free block in the free list
-    if unsafe { !ListHead::is_empty(&raw mut bucket.free_list) } {
+    if unsafe { !DoublyListHead::is_empty(&raw mut bucket.free_list) } {
         // Found a free block
         let page = bucket.free_list.next;
 
         // Remove the block from the free list
-        unsafe { ListHead::delete(page) };
+        unsafe { DoublyListHead::delete(page) };
 
         // Toggle the bitmap
         if order != MAX_ORDER {
@@ -110,7 +110,9 @@ pub unsafe fn alloc_pages_order(order: usize) -> *mut u8 {
         let buddy = unsafe { buddies.add(PAGE_SIZE << order) };
 
         // Insert the buddy into the free list
-        unsafe { ListHead::insert_after(&raw mut bucket.free_list, buddy as *mut ListHead) };
+        unsafe {
+            DoublyListHead::insert_after(&raw mut bucket.free_list, buddy as *mut DoublyListHead)
+        };
 
         // Toggle the bitmap
         toggle_bitmap(unsafe { &mut *bucket.bitmap }, bit_idx(buddy, order));
@@ -127,7 +129,9 @@ pub unsafe fn free_pages_order(page: *mut u8, order: usize) {
 
     if order == MAX_ORDER {
         // Just add it to the free list
-        unsafe { ListHead::insert_after(&raw mut bucket.free_list, page as *mut ListHead) };
+        unsafe {
+            DoublyListHead::insert_after(&raw mut bucket.free_list, page as *mut DoublyListHead)
+        };
         return;
     }
 
@@ -136,7 +140,9 @@ pub unsafe fn free_pages_order(page: *mut u8, order: usize) {
     if unsafe { &mut *bucket.bitmap }[bit_idx(page, order)] {
         // Buddy is not freed
 
-        unsafe { ListHead::insert_after(&raw mut bucket.free_list, page as *mut ListHead) };
+        unsafe {
+            DoublyListHead::insert_after(&raw mut bucket.free_list, page as *mut DoublyListHead)
+        };
     } else {
         // Buddy is freed
 
@@ -144,7 +150,7 @@ pub unsafe fn free_pages_order(page: *mut u8, order: usize) {
         let buddy = (page.addr() ^ (PAGE_SIZE << order)) as *mut u8;
 
         // Remove buddy from free list
-        unsafe { ListHead::delete(buddy as *mut ListHead) };
+        unsafe { DoublyListHead::delete(buddy as *mut DoublyListHead) };
 
         // Merge buddies
         let merged = if page.addr() < buddy.addr() {

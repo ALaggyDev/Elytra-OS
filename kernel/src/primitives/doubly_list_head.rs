@@ -2,13 +2,13 @@ use core::ptr::null_mut;
 
 /// A doubly linked circular list head structure. Basically Linux kernel's `list_head` in Rust.
 #[derive(Debug)]
-pub struct ListHead {
-    pub next: *mut ListHead,
-    pub prev: *mut ListHead,
+pub struct DoublyListHead {
+    pub next: *mut DoublyListHead,
+    pub prev: *mut DoublyListHead,
 }
 
-impl ListHead {
-    /// Initialize a `DoubleListHead` to point to itself.
+impl DoublyListHead {
+    /// Initialize a `DoublyListHead` to point to itself.
     pub unsafe fn new_empty(head: *mut Self) {
         unsafe {
             (*head).next = head;
