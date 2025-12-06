@@ -1,6 +1,13 @@
 use alloc::{boxed::Box, vec};
 
-use crate::{mem::buddy, printkln};
+use crate::{
+    helper::p2v,
+    mem::{
+        buddy,
+        page_table::{get_active_page_directory, resolve_virt_addr},
+    },
+    printkln,
+};
 
 // Run test.
 pub fn test() {
@@ -8,6 +15,7 @@ pub fn test() {
 
     test_buddy_alloc();
     test_slab_alloc();
+    test_paging();
 }
 
 fn test_buddy_alloc() {
@@ -71,4 +79,22 @@ fn test_slab_alloc() {
         "Large Box address: {:#x}",
         &*c as *const [u8; 6000] as usize
     );
+}
+
+fn test_paging() {
+    let val: usize = 0x1234_5678_9ABC_DEF0;
+
+    unsafe {
+        let phys_addr =
+            resolve_virt_addr(get_active_page_directory(), &raw const val as usize).unwrap();
+        printkln!("Physical address: {:#x}", phys_addr);
+
+        let val_copy = *(p2v(phys_addr) as *const usize);
+        printkln!("Value copied from physical address: {:#x}", val_copy);
+
+        assert_eq!(val, val_copy);
+
+        *(p2v(phys_addr) as *mut usize) = 0xdeadbeef;
+        printkln!("Modified value: {:#x}", val);
+    }
 }

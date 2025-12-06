@@ -7,7 +7,10 @@ use crate::{
     helper::{self, p2v},
     idt,
     io::{port::outb, serial},
-    mem::{buddy, page_table},
+    mem::{
+        buddy,
+        page_table::{self, PageDirectoryEntry},
+    },
     printkln, test,
 };
 
@@ -45,15 +48,15 @@ fn pic_disable() {
 // https://github.com/rust-osdev/bootloader/issues/470
 fn unmap_lower_half() {
     unsafe {
-        let level_4_table = page_table::get_active_page_table();
+        let p4_table = page_table::get_active_page_directory();
 
         for i in 0..256 {
             // Each entry maps 512 GiB, so unmapping the first 256 entries unmaps the first 128 TiB.
-            (*level_4_table).0[i] = 0;
+            (*p4_table).0[i] = PageDirectoryEntry::ZERO;
         }
 
         // Flush the TLB by reloading CR3.
-        page_table::set_active_page_table(level_4_table);
+        page_table::set_active_page_directory(p4_table);
     }
 }
 
