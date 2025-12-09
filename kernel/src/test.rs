@@ -1,12 +1,14 @@
 use alloc::{boxed::Box, vec};
 
 use crate::{
+    consts::PAGE_SIZE,
     helper::p2v,
     mem::{
         buddy,
-        page_table::{get_active_page_directory, resolve_virt_addr},
+        page_table::{get_active_page_directory, resolve_virt_addr, set_active_page_directory},
     },
     printkln,
+    user::address_space::{AddressSpace, KERNEL_P4_TABLE},
 };
 
 // Run test.
@@ -16,6 +18,7 @@ pub fn test() {
     test_buddy_alloc();
     test_slab_alloc();
     test_paging();
+    test_address_space();
 }
 
 fn test_buddy_alloc() {
@@ -96,5 +99,22 @@ fn test_paging() {
 
         *(p2v(phys_addr) as *mut usize) = 0xdeadbeef;
         printkln!("Modified value: {:#x}", val);
+    }
+}
+
+fn test_address_space() {
+    let mut address_space = AddressSpace::new();
+
+    address_space.map_kernel_pages();
+    address_space
+        .add_virt_region(0x400000, 4 * PAGE_SIZE, true, true)
+        .unwrap();
+
+    unsafe {
+        set_active_page_directory(address_space.p4_table());
+
+        *(0x403000 as *mut usize) = 0xCAFEBABE;
+
+        set_active_page_directory(KERNEL_P4_TABLE);
     }
 }

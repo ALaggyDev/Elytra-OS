@@ -12,6 +12,7 @@ use crate::{
         page_table::{self, PageDirectoryEntry},
     },
     printkln, test,
+    user::address_space::KERNEL_P4_TABLE,
 };
 
 pub(crate) fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
@@ -27,7 +28,7 @@ fn init(boot_info: &'static mut BootInfo) {
     unsafe {
         pic_disable();
         serial::init();
-        unmap_lower_half();
+        init_mem_paging();
         gdt::init();
         idt::init();
 
@@ -43,10 +44,10 @@ fn pic_disable() {
     }
 }
 
-// Unmap all lower half memory.
+// Set KERNEL_P4_TABLE and unmap all lower half memory.
 // The rust-osdev bootloader leaves some junk in the lower half memory, so we have to unmap it ourselves.
 // https://github.com/rust-osdev/bootloader/issues/470
-fn unmap_lower_half() {
+fn init_mem_paging() {
     unsafe {
         let p4_table = page_table::get_active_page_directory();
 
@@ -57,6 +58,8 @@ fn unmap_lower_half() {
 
         // Flush the TLB by reloading CR3.
         page_table::set_active_page_directory(p4_table);
+
+        KERNEL_P4_TABLE = p4_table;
     }
 }
 

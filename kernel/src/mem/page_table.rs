@@ -119,7 +119,7 @@ pub struct PageDirectory(pub [PageDirectoryEntry; 512]);
 pub struct PageTable(pub [PageTableEntry; 512]);
 
 #[bitfield(u64)]
-struct VirtAddr {
+pub struct VirtAddr {
     #[bits(0..=11, r)]
     offset: u12,
     #[bits(12..=20, r)]

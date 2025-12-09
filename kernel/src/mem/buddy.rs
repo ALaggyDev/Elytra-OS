@@ -4,7 +4,7 @@ use bitvec::slice::BitSlice;
 
 use crate::{
     consts::PAGE_SIZE,
-    helper::{align_up, log2_ceil},
+    helper::{align_up, log2_ceil, log2_floor},
     primitives::DoublyListHead,
 };
 
@@ -170,4 +170,33 @@ pub unsafe fn alloc_pages(num_pages: usize) -> *mut u8 {
 #[inline]
 pub unsafe fn free_pages(ptr: *mut u8, num_pages: usize) {
     unsafe { free_pages_order(ptr, log2_ceil(num_pages)) }
+}
+
+#[inline]
+pub unsafe fn alloc_pages_order_panic(order: usize) -> *mut u8 {
+    let ptr = unsafe { alloc_pages_order(order) };
+    if ptr.is_null() {
+        panic!("Buddy allocator: Out of memory");
+    }
+    ptr
+}
+
+#[inline]
+pub unsafe fn alloc_pages_panic(num_pages: usize) -> *mut u8 {
+    let ptr = unsafe { alloc_pages(num_pages) };
+    if ptr.is_null() {
+        panic!("Buddy allocator: Out of memory");
+    }
+    ptr
+}
+
+// Calculate the page order required for a given size.
+// Equivalent to log2_ceil(size.div_ceil(PAGE_SIZE)), but more efficient.
+#[inline]
+pub fn calculate_order(size: usize) -> usize {
+    // LLVM doesn't actually optimize the case when size == 1 well...
+    size.strict_sub(1)
+        .checked_ilog2()
+        .map_or(0, |val| val as usize)
+        .saturating_sub(log2_floor(PAGE_SIZE) - 1)
 }

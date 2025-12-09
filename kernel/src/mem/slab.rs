@@ -14,7 +14,7 @@ use core::{
 use crate::{
     consts::PAGE_SIZE,
     helper::log2_floor,
-    mem::buddy::{alloc_pages_order, free_pages_order},
+    mem::buddy::{alloc_pages_order, calculate_order, free_pages_order},
     primitives::SinglyListHead,
 };
 
@@ -58,16 +58,6 @@ impl SlabAllocator {
         }
     }
 
-    // Calculate the page order required for a given size.
-    // Equivalent to log2_ceil(size.div_ceil(PAGE_SIZE)), but more efficient.
-    fn calculate_order(size: usize) -> usize {
-        // LLVM doesn't actually optimize the case when size == 1 well...
-        size.strict_sub(1)
-            .checked_ilog2()
-            .map_or(0, |val| val as usize)
-            .saturating_sub(log2_floor(PAGE_SIZE) - 1)
-    }
-
     fn find_cache(&self, size: usize) -> Option<&Cache> {
         self.caches.iter().find(|cache| size <= cache.obj_size)
     }
@@ -79,7 +69,7 @@ impl SlabAllocator {
     fn check_same_basket(&self, old_size: usize, new_size: usize) -> bool {
         match (self.find_cache(old_size), self.find_cache(new_size)) {
             (Some(old_cache), Some(new_cache)) => old_cache.obj_size == new_cache.obj_size,
-            (None, None) => Self::calculate_order(old_size) == Self::calculate_order(new_size),
+            (None, None) => calculate_order(old_size) == calculate_order(new_size),
             _ => false,
         }
     }
@@ -123,7 +113,7 @@ impl SlabAllocator {
         } else {
             // Allocate from the buddy allocator.
 
-            unsafe { alloc_pages_order(Self::calculate_order(size)) }
+            unsafe { alloc_pages_order(calculate_order(size)) }
         }
     }
 
@@ -138,7 +128,7 @@ impl SlabAllocator {
         } else {
             // Free to the buddy allocator.
 
-            unsafe { free_pages_order(ptr, Self::calculate_order(size)) }
+            unsafe { free_pages_order(ptr, calculate_order(size)) }
         }
     }
 

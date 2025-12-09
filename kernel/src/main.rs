@@ -3,6 +3,7 @@
 #![feature(abi_x86_interrupt)]
 #![allow(static_mut_refs)] // we allow references to static mut, because the kernel often uses global mutable state
 
+#[macro_use]
 extern crate alloc;
 
 use bootloader_api::{BootInfo, BootloaderConfig, config::Mapping, entry_point};
@@ -20,6 +21,7 @@ pub mod mem;
 pub mod primitives;
 pub mod startup;
 pub mod test;
+pub mod user;
 
 /// This function is called on panic.
 #[panic_handler]

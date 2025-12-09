@@ -39,3 +39,10 @@ pub const fn log2_floor(x: usize) -> usize {
 pub const fn log2_ceil(x: usize) -> usize {
     log2_floor(x) + !x.is_power_of_two() as usize
 }
+
+/// Check if a + b <= upper_bound, returning Some(sum) if so, None otherwise.
+#[inline]
+pub fn add_within_bounds(a: usize, b: usize, upper_bound: usize) -> Option<usize> {
+    let sum = a.checked_add(b)?;
+    if sum <= upper_bound { Some(sum) } else { None }
+}
