@@ -8,7 +8,10 @@ use crate::{
         page_table::{get_active_page_directory, resolve_virt_addr, set_active_page_directory},
     },
     printkln,
-    user::address_space::{AddressSpace, KERNEL_P4_TABLE},
+    user::{
+        address_space::{AddressSpace, KERNEL_P4_TABLE},
+        task::test_task,
+    },
 };
 
 // Run test.
@@ -19,6 +22,8 @@ pub fn test() {
     test_slab_alloc();
     test_paging();
     test_address_space();
+
+    test_task();
 }
 
 fn test_buddy_alloc() {

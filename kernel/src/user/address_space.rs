@@ -8,7 +8,10 @@ use crate::{
     helper::{add_within_bounds, align_up, log2_ceil, p2v, v2p},
     mem::{
         buddy::{alloc_pages_order_panic, alloc_pages_panic, free_pages, free_pages_order},
-        page_table::{PageDirectory, PageDirectoryEntry, VirtAddr, resolve_virt_addr},
+        page_table::{
+            PageDirectory, PageDirectoryEntry, VirtAddr, resolve_virt_addr,
+            set_active_page_directory,
+        },
     },
 };
 
@@ -84,7 +87,7 @@ impl AddressSpace {
         true
     }
 
-    /// Add a virtual region. Returns the page pointer if successful.
+    /// Add a virtual region. Returns the page pointer if successful. The pages will be zeroed.
     pub fn add_virt_region(
         &mut self,
         start: usize,
@@ -101,6 +104,7 @@ impl AddressSpace {
         // Allocate some pages.
         let num_order = log2_ceil(len / PAGE_SIZE);
         let pages = unsafe { alloc_pages_order_panic(num_order) };
+        unsafe { pages.write_bytes(0, len) };
 
         // Map pages.
         for offset in (0..len).step_by(PAGE_SIZE) {
@@ -176,6 +180,11 @@ impl AddressSpace {
                 .with_addr(phys_addr as u64);
             (*p1_table).0[virt_addr.p1_index().as_usize()] = p1_entry;
         }
+    }
+
+    /// Switch to this address space.
+    pub unsafe fn switch_to_this(&self) {
+        unsafe { set_active_page_directory(self.p4_table) };
     }
 }
 
