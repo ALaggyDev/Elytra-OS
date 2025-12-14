@@ -12,7 +12,7 @@ use crate::{
         page_table::{self, PageDirectoryEntry},
     },
     printkln, test,
-    user::address_space::KERNEL_P4_TABLE,
+    user::{address_space::KERNEL_P4_TABLE, syscall},
 };
 
 pub(crate) fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
@@ -33,6 +33,8 @@ fn init(boot_info: &'static mut BootInfo) {
         idt::init();
 
         init_buddy_allocator(boot_info);
+
+        syscall::init();
     }
 }
 

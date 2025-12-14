@@ -22,8 +22,8 @@ struct Entry {
 // 0: Null segment
 // 1: Kernel code segment
 // 2: Kernel data segment
-// 3: User code segment
-// 4: User data segment
+// 3: User data segment
+// 4: User code segment
 // 5: Task State Segment (lower half)
 // 6: Task State Segment (higher half)
 
@@ -31,8 +31,8 @@ const SIZE_OF_GDT: usize = 7;
 
 pub const KERNEL_CODE_SELECTOR: u16 = 0x08;
 pub const KERNEL_DATA_SELECTOR: u16 = 0x10;
-pub const USER_CODE_SELECTOR: u16 = 0x18 | 0x03;
-pub const USER_DATA_SELECTOR: u16 = 0x20 | 0x03;
+pub const USER_DATA_SELECTOR: u16 = 0x18 | 0x03;
+pub const USER_CODE_SELECTOR: u16 = 0x20 | 0x03;
 
 #[repr(C)]
 struct Gdt([Entry; SIZE_OF_GDT]);
@@ -87,14 +87,14 @@ pub unsafe fn init() {
     gdt.0[2] = Entry::ZERO
         .with_access(0b10010011)
         .with_flags(u4::new(0b0000));
-    // User code segment
-    gdt.0[3] = Entry::ZERO
-        .with_access(0b11111011)
-        .with_flags(u4::new(0b0010));
     // User data segment
-    gdt.0[4] = Entry::ZERO
+    gdt.0[3] = Entry::ZERO
         .with_access(0b11110011)
         .with_flags(u4::new(0b0000));
+    // User code segment
+    gdt.0[4] = Entry::ZERO
+        .with_access(0b11111011)
+        .with_flags(u4::new(0b0010));
     // Task State Segment
     gdt.0[5] = Entry::ZERO
         .with_base(&raw const TSS as u32)

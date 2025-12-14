@@ -5,7 +5,7 @@ use crate::{
     gdt::{TSS, USER_CODE_SELECTOR, USER_DATA_SELECTOR},
     isr::InterruptStackFrame,
     mem::buddy::alloc_pages_panic,
-    user::address_space::AddressSpace,
+    user::{address_space::AddressSpace, syscall},
 };
 
 pub const USER_STACK_NUM_PAGES: usize = 2;
@@ -25,7 +25,21 @@ pub fn test_task() {
         .add_virt_region(user_code_vaddr, 0x1000, false, true)
         .unwrap();
     unsafe {
-        (user_code as *mut u64).write_unaligned(0x80cd); // int 0x80
+        // mov eax, 1
+        // mov rdi, 2
+        // mov rsi, 3
+        // mov rdx, 4
+        // mov r10, 5
+        // mov r8, 6
+        // mov r9, 7
+        // syscall
+        // hlt
+        (user_code as *mut [u8; _]).write([
+            0xB8, 0x01, 0x00, 0x00, 0x00, 0x48, 0xC7, 0xC7, 0x02, 0x00, 0x00, 0x00, 0x48, 0xC7,
+            0xC6, 0x03, 0x00, 0x00, 0x00, 0x48, 0xC7, 0xC2, 0x04, 0x00, 0x00, 0x00, 0x49, 0xC7,
+            0xC2, 0x05, 0x00, 0x00, 0x00, 0x49, 0xC7, 0xC0, 0x06, 0x00, 0x00, 0x00, 0x49, 0xC7,
+            0xC1, 0x07, 0x00, 0x00, 0x00, 0x0F, 0x05, 0xF4,
+        ]);
     }
 
     // Create user stack
@@ -59,8 +73,13 @@ pub fn test_task() {
 
     // Switch to the task
     unsafe {
+        let kernel_stack_top = kernel_stack.add(KERNEL_STACK_NUM_PAGES * PAGE_SIZE);
+
         // Set tss rsp0
-        TSS.rsp0 = kernel_stack.add(KERNEL_STACK_NUM_PAGES * PAGE_SIZE) as u64;
+        TSS.rsp0 = kernel_stack_top as u64;
+
+        // Set syscall stack pointer
+        syscall::KERNEL_STACK_ADDR = kernel_stack_top as usize;
 
         // Switch address space
         addr_space.switch_to_this();

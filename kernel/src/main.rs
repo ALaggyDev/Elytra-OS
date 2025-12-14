@@ -18,6 +18,7 @@ pub mod idt;
 pub mod io;
 pub mod isr;
 pub mod mem;
+pub mod msr;
 pub mod primitives;
 pub mod startup;
 pub mod test;
