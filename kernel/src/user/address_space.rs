@@ -5,7 +5,7 @@ use arbitrary_int::traits::Integer;
 
 use crate::{
     consts::{PAGE_SIZE, USERSPACE_LIMIT},
-    helper::{add_within_bounds, align_up, log2_ceil, p2v, v2p},
+    helper::{add_within_bounds, align_down, align_up, log2_ceil, p2v, v2p},
     mem::{
         buddy::{alloc_pages_order_panic, alloc_pages_panic, free_pages, free_pages_order},
         page_table::{
@@ -74,7 +74,11 @@ impl AddressSpace {
 
     /// Test if a region does not overlap with existing regions and is within userspace bounds.
     pub fn check_region_no_overlap(&self, start: usize, len: usize) -> bool {
-        let Some(end) = add_within_bounds(start, len, USERSPACE_LIMIT) else {
+        // Forbid addresses not within USERSPACE_LIMIT. We block the first and last page in the userspace too.
+        if start == 0 {
+            return false;
+        }
+        let Some(end) = add_within_bounds(start, len, USERSPACE_LIMIT - PAGE_SIZE) else {
             return false;
         };
 
@@ -95,6 +99,7 @@ impl AddressSpace {
         writable: bool,
         executable: bool,
     ) -> Result<*mut u8, ()> {
+        let start = align_down(start, PAGE_SIZE);
         let len = align_up(len, PAGE_SIZE);
 
         if !self.check_region_no_overlap(start, len) {
