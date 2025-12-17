@@ -1,4 +1,4 @@
-use core::ptr::null_mut;
+use core::ptr::{copy_nonoverlapping, null_mut};
 
 use alloc::vec::Vec;
 use arbitrary_int::traits::Integer;
@@ -13,10 +13,12 @@ use crate::{
             set_active_page_directory,
         },
     },
+    user::{elf_parser::ElfParser, elf_structure::ElfProgramHeaderType},
 };
 
 pub static mut KERNEL_P4_TABLE: *mut PageDirectory = null_mut();
 
+#[derive(Debug)]
 pub struct VirtRegion {
     pub start: usize,
     pub len: usize,
@@ -29,6 +31,7 @@ pub struct VirtRegion {
 }
 
 // A userspace address space.
+#[derive(Debug)]
 pub struct AddressSpace {
     p4_table: *mut PageDirectory,
     virt_regions: Vec<VirtRegion>,
@@ -190,6 +193,47 @@ impl AddressSpace {
     /// Switch to this address space.
     pub unsafe fn switch_to_this(&self) {
         unsafe { set_active_page_directory(self.p4_table) };
+    }
+
+    /// Map ELF segments into the address space.
+    pub fn map_elf_segments(&mut self, parser: &ElfParser) -> Result<(), ()> {
+        for i in 0..parser.get_header().e_phnum as usize {
+            let ph = parser.get_program_header(i)?;
+
+            if ph.p_type != ElfProgramHeaderType::Load {
+                continue;
+            }
+
+            let mem_size = ph.p_memsz as usize;
+            let file_size = ph.p_filesz as usize;
+            let vaddr = ph.p_vaddr as usize;
+            let offset = ph.p_offset as usize;
+
+            let writable = (ph.p_flags & 0x2) != 0;
+            let executable = (ph.p_flags & 0x1) != 0;
+
+            // We check safety first
+            add_within_bounds(offset, file_size, parser.get_buf().len()).ok_or(())?;
+            if file_size > mem_size {
+                return Err(());
+            }
+
+            // Create the virtual region
+            let region = self.add_virt_region(vaddr, mem_size, writable, executable)?;
+
+            unsafe {
+                // Copy the segment from the ELF file to memory
+                // Additional memory are already zeroed by add_virt_region
+                // Safety is checked above, so this *should* be safe
+                copy_nonoverlapping(
+                    parser.get_buf().as_ptr().add(offset),
+                    region as *mut u8,
+                    file_size,
+                );
+            }
+        }
+
+        Ok(())
     }
 }
 

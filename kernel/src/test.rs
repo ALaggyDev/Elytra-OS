@@ -10,7 +10,8 @@ use crate::{
     printkln,
     user::{
         address_space::{AddressSpace, KERNEL_P4_TABLE},
-        test_task::test_load_elf,
+        elf_parser::ElfParser,
+        task::{Task, switch_to_new_task},
     },
 };
 
@@ -23,8 +24,7 @@ pub fn test() {
     test_paging();
     test_address_space();
 
-    // test_task();
-    test_load_elf();
+    test_elf_task();
 }
 
 fn test_buddy_alloc() {
@@ -123,4 +123,36 @@ fn test_address_space() {
 
         set_active_page_directory(KERNEL_P4_TABLE);
     }
+}
+
+fn test_elf_task() {
+    // From: https://users.rust-lang.org/t/can-i-conveniently-compile-bytes-into-a-rust-program-with-a-specific-alignment/24049/2
+    #[repr(C)] // guarantee 'bytes' comes after '_align'
+    struct AlignedAs<Align, Bytes: ?Sized> {
+        pub _align: [Align; 0],
+        pub bytes: Bytes,
+    }
+
+    macro_rules! include_bytes_align_as {
+        ($align_ty:ty, $path:literal) => {{
+            // const block expression to encapsulate the static
+            use AlignedAs;
+
+            // this assignment is made possible by CoerceUnsized
+            static ALIGNED: &AlignedAs<$align_ty, [u8]> = &AlignedAs {
+                _align: [],
+                bytes: *include_bytes!($path),
+            };
+
+            &ALIGNED.bytes
+        }};
+    }
+
+    const ELF_BINARY: &[u8] = include_bytes_align_as!(u64, "../../tests/test");
+
+    let parser = ElfParser::parse(ELF_BINARY).unwrap();
+
+    let task = Task::create_task_from_elf(&parser).unwrap();
+
+    switch_to_new_task(task);
 }
