@@ -10,7 +10,7 @@ use crate::{
     printkln,
     user::{
         address_space::{AddressSpace, KERNEL_P4_TABLE},
-        task::test_task,
+        test_task::test_load_elf,
     },
 };
 
@@ -23,7 +23,8 @@ pub fn test() {
     test_paging();
     test_address_space();
 
-    test_task();
+    // test_task();
+    test_load_elf();
 }
 
 fn test_buddy_alloc() {

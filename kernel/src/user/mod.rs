@@ -1,3 +1,5 @@
 pub mod address_space;
+pub mod elf_parser;
+pub mod elf_structure;
 pub mod syscall;
-pub mod task;
+pub mod test_task;
