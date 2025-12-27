@@ -54,13 +54,13 @@ pub struct SyscallArgs {
 #[unsafe(naked)]
 pub extern "C" fn syscall_entry() {
     naked_asm!(
-        "mov [rip + {0}], rsp",      // Save user rsp
+        "mov [rip + {0}], rsp",      // Save user rsp temporarily
         "mov rsp, [rip + {1}]",      // Load kernel stack rsp
+
+        "push [rip + {0}]",          // Save user rsp
 
         "push r11",                  // Save r11 (user rflags)
         "push rcx",                  // Save rcx (user rip)
-
-        "push 0",                    // Align stack to 16 bytes later
 
         "push r9",                   // Save syscall arguments in SyscallArgs struct
         "push r8",
@@ -78,7 +78,7 @@ pub extern "C" fn syscall_entry() {
         // We might need to assess if such a risk is acceptable in the future.
         "call {2}",                  // Call syscall handler
 
-        "add rsp, 64",               // Clean up SyscallArgs and alignment
+        "add rsp, 56",               // Clean up SyscallArgs
 
         "xor rdi, rdi",              // Clear registers to prevent leaking data to user mode
         "xor rsi, rsi",              // (caller-saved registers, rax, rcx and r11 are ignored)
@@ -90,7 +90,7 @@ pub extern "C" fn syscall_entry() {
         "pop rcx",                   // Restore rcx (user rip)
         "pop r11",                   // Restore r11 (user rflags)
 
-        "mov rsp, [rip + {0}]",      // Restore user rsp
+        "pop rsp",                   // Restore user rsp
 
         "sysretq",                   // Return to user mode
 
