@@ -11,6 +11,7 @@ use core::arch::naked_asm;
 use crate::{
     msr::{IA32_EFER, IA32_FMASK, IA32_LSTAR, IA32_STAR, read_msr, write_msr},
     printkln,
+    user::sched,
 };
 
 pub fn init() {
@@ -103,5 +104,28 @@ pub extern "C" fn syscall_entry() {
 pub extern "C" fn syscall_handler(args: &mut SyscallArgs) -> usize {
     printkln!("Syscall received! Args: {:#x?}", args);
 
-    0
+    match args.num {
+        0 => {
+            printkln!("Syscall 0: print hello world");
+
+            printkln!("Hello world from syscall!");
+
+            0
+        }
+        1 => {
+            printkln!("Syscall 1: yield");
+
+            printkln!("Yielding task {:#p}", unsafe {
+                sched::CURRENT_TASK.as_ref().unwrap().get()
+            });
+
+            unsafe { sched::yield_task() };
+
+            0
+        }
+        _ => {
+            printkln!("Unknown syscall number: {}", args.num);
+            usize::MAX
+        }
+    }
 }

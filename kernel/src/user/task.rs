@@ -30,14 +30,12 @@
 //! |      for iretq      |
 //! |---------------------| High Address
 
-use core::{arch::asm, mem::forget};
-
 use crate::{
     consts::PAGE_SIZE,
-    gdt::{TSS, USER_CODE_SELECTOR, USER_DATA_SELECTOR},
+    gdt::{USER_CODE_SELECTOR, USER_DATA_SELECTOR},
     isr::InterruptStackFrame,
     mem::buddy::{alloc_pages_panic, free_pages},
-    user::{address_space::AddressSpace, elf_parser::ElfParser, syscall},
+    user::{address_space::AddressSpace, elf_parser::ElfParser},
 };
 
 pub const USER_STACK_SIZE: usize = 2 * PAGE_SIZE; // 8 KiB
@@ -53,10 +51,11 @@ pub struct Task {
     pub kernel_stack: KernelStack, // Kernel stack information
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskState {
     New,
-    Executed,
+    Ready,
+    Terminated,
 }
 
 #[derive(Debug)]
@@ -137,48 +136,5 @@ impl Task {
             addr_space,
             kernel_stack,
         })
-    }
-}
-
-/// Switch to the given new task.
-pub fn switch_to_new_task(task: Task) -> ! {
-    unsafe {
-        // Set TSS rsp0 to the top of the kernel stack
-        TSS.rsp0 = task.kernel_stack.top() as u64;
-
-        // Set syscall stack pointer
-        syscall::KERNEL_STACK_ADDR = task.kernel_stack.top();
-
-        // Switch address space
-        task.addr_space.switch_to_this();
-
-        // Forget the task to avoid dropping it
-        let krsp = task.kernel_stack.krsp;
-        forget(task);
-
-        // Change kernel stack, clear registers and return to user space
-        asm!(
-            "mov rsp, {}",
-
-            "mov rax, 0",
-            "mov rbx, 0",
-            "mov rcx, 0",
-            "mov rdx, 0",
-            "mov rsi, 0",
-            "mov rdi, 0",
-            "mov rbp, 0",
-            "mov r8, 0",
-            "mov r9, 0",
-            "mov r10, 0",
-            "mov r11, 0",
-            "mov r12, 0",
-            "mov r13, 0",
-            "mov r14, 0",
-            "mov r15, 0",
-
-            "iretq",
-            in(reg) krsp,
-            options(nostack, noreturn)
-        );
     }
 }

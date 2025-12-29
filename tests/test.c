@@ -6,7 +6,13 @@ void _start()
     a += 10;
 
     __asm__(
+        // yield
+        "mov rax, 1\n\t"
+        "syscall\n\t"
+        // yield
+        "mov rax, 1\n\t"
+        "syscall\n\t"
+        // print hello world
         "mov rax, 0\n\t"
-        "mov rdi, 42\n\t"
         "syscall\n\t");
 }

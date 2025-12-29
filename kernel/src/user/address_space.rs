@@ -33,7 +33,7 @@ pub struct VirtRegion {
 // A userspace address space.
 #[derive(Debug)]
 pub struct AddressSpace {
-    p4_table: *mut PageDirectory,
+    pub(crate) p4_table: *mut PageDirectory,
     virt_regions: Vec<VirtRegion>,
     allocated_tables: Vec<*mut u8>,
 }

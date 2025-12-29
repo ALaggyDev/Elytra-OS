@@ -1,4 +1,6 @@
-use alloc::{boxed::Box, vec};
+use core::cell::UnsafeCell;
+
+use alloc::{boxed::Box, rc::Rc, vec};
 
 use crate::{
     consts::PAGE_SIZE,
@@ -11,7 +13,8 @@ use crate::{
     user::{
         address_space::{AddressSpace, KERNEL_P4_TABLE},
         elf_parser::ElfParser,
-        task::{Task, switch_to_new_task},
+        sched,
+        task::Task,
     },
 };
 
@@ -24,7 +27,7 @@ pub fn test() {
     test_paging();
     test_address_space();
 
-    test_elf_task();
+    test_scheduler();
 }
 
 fn test_buddy_alloc() {
@@ -125,7 +128,7 @@ fn test_address_space() {
     }
 }
 
-fn test_elf_task() {
+fn test_scheduler() {
     // From: https://users.rust-lang.org/t/can-i-conveniently-compile-bytes-into-a-rust-program-with-a-specific-alignment/24049/2
     #[repr(C)] // guarantee 'bytes' comes after '_align'
     struct AlignedAs<Align, Bytes: ?Sized> {
@@ -152,7 +155,20 @@ fn test_elf_task() {
 
     let parser = ElfParser::parse(ELF_BINARY).unwrap();
 
-    let task = Task::create_task_from_elf(&parser).unwrap();
+    // Create tasks
+    let task1 = Task::create_task_from_elf(&parser).unwrap();
+    let task2 = Task::create_task_from_elf(&parser).unwrap();
 
-    switch_to_new_task(task);
+    // Move tasks to heap
+    let task1 = Rc::new(UnsafeCell::new(task1));
+    let task2 = Rc::new(UnsafeCell::new(task2));
+
+    unsafe {
+        // Add tasks to scheduler
+        sched::add_new_task(task1);
+        sched::add_new_task(task2);
+
+        // Begin scheduler (task1 should run first)
+        sched::begin_scheduler();
+    }
 }
