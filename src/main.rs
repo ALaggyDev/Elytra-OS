@@ -77,7 +77,7 @@ fn main() {
             "-ex",
             &format!("file {} -o 0xffffffff80000000", fix_wsl_path(kernel_path)),
         ]);
-        gdb_cmd.args(["-x", "script.gdb"]);
+        gdb_cmd.args(["-x", "gdb/init.gdb"]);
 
         let mut gdb = gdb_cmd.spawn().expect("failed to start gdb");
         gdb.wait().expect("failed to wait on gdb");
