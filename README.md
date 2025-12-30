@@ -9,11 +9,17 @@ Progress:
 -   [x] IDT
 -   [x] Buddy allocator
 -   [x] Slab allocator
--   [x] Basic paging
--   [ ] Basic task support and context switching
--   [ ] Basic ELF loading
--   [ ] Syscalls
--   [ ] User mode
+-   [x] Paging
+-   [x] User mode
+-   [x] Tasks & context switch
+    -   [x] Cooperative multi-tasking
+    -   [ ] Preemptive multi-tasking
+    -   [ ] Inactive tasks and wakeup
+-   [x] ELF loading
+-   [x] Syscalls
+-   [ ] Interrupt handling
+-   [ ] Hardware drivers
+-   [ ] Security
 
 # Running
 
