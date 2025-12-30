@@ -12,7 +12,7 @@ void _start()
         // yield
         "mov rax, 1\n\t"
         "syscall\n\t"
-        // print hello world
+        // print exit
         "mov rax, 0\n\t"
         "syscall\n\t");
 }

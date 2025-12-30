@@ -1,10 +1,14 @@
-use core::{arch::naked_asm, cell::UnsafeCell, mem::offset_of, panic, ptr::null_mut};
+use core::{
+    arch::naked_asm, cell::UnsafeCell, hint::unreachable_unchecked, mem::offset_of, ptr::null_mut,
+};
 
 use alloc::{collections::vec_deque::VecDeque, rc::Rc};
 
 use crate::{
     consts,
     gdt::{TSS, Tss},
+    helper::hcf,
+    printkln,
     user::{
         syscall,
         task::{KERNEL_STACK_SIZE, Task, TaskState},
@@ -22,12 +26,10 @@ pub static mut READY_TASKS: VecDeque<Rc<UnsafeCell<Task>>> = VecDeque::new();
 /// Begin the task scheduler. There must be at least one ready task in the ready queue.
 pub unsafe fn begin_scheduler() -> ! {
     unsafe {
-        let Some(next_task) = READY_TASKS.pop_front() else {
-            panic!("No task to begin the scheduler!");
-        };
+        yield_task_must_swap();
 
-        switch_task(next_task);
-        panic!("begin_scheduler should never return!");
+        // Kernel is not a task, so context switching into the kernel is impossible.
+        unreachable_unchecked();
     }
 }
 
@@ -37,6 +39,21 @@ pub unsafe fn begin_scheduler() -> ! {
 pub unsafe fn add_new_task(task: Rc<UnsafeCell<Task>>) {
     unsafe {
         READY_TASKS.push_back(task);
+    }
+}
+
+/// Kill the current task.
+/// This function simply marks the current task as terminated and doesn't put it back to the ready queue.
+pub unsafe fn kill_task() -> ! {
+    unsafe {
+        let current_task = CURRENT_TASK.as_ref().unwrap_unchecked();
+
+        (*current_task.get()).state = TaskState::Terminated;
+
+        yield_task_must_swap();
+
+        // Task is marked as terminated, so it should never be in the ready queue again.
+        unreachable_unchecked();
     }
 }
 
@@ -52,6 +69,19 @@ pub unsafe fn yield_task() {
         let Some(next_task) = READY_TASKS.pop_front() else {
             // No other ready task, continue the current task
             return;
+        };
+
+        switch_task(next_task);
+    }
+}
+
+/// Yield the current task, and must switch to another task.
+unsafe fn yield_task_must_swap() {
+    unsafe {
+        let Some(next_task) = READY_TASKS.pop_front() else {
+            // No other ready task, continue the current task
+            printkln!("All tasks terminated. Halting CPU...");
+            hcf();
         };
 
         switch_task(next_task);
@@ -75,7 +105,9 @@ pub unsafe fn switch_task(new_task: Rc<UnsafeCell<Task>>) {
         let old_task_ptr = old_task.as_ref().map_or(null_mut(), |v| v.get());
 
         // Put the current task back to the ready queue
-        if let Some(old_task) = old_task {
+        if let Some(old_task) = old_task
+            && (*old_task.get()).state != TaskState::Terminated
+        {
             READY_TASKS.push_back(old_task);
         }
 

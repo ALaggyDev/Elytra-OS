@@ -106,11 +106,13 @@ pub extern "C" fn syscall_handler(args: &mut SyscallArgs) -> usize {
 
     match args.num {
         0 => {
-            printkln!("Syscall 0: print hello world");
+            printkln!("Syscall 0: exit");
 
-            printkln!("Hello world from syscall!");
+            printkln!("Exiting task {:#p}", unsafe {
+                sched::CURRENT_TASK.as_ref().unwrap().get()
+            });
 
-            0
+            unsafe { sched::kill_task() };
         }
         1 => {
             printkln!("Syscall 1: yield");
