@@ -1,5 +1,9 @@
 use core::{
-    arch::naked_asm, cell::UnsafeCell, hint::unreachable_unchecked, mem::offset_of, ptr::null_mut,
+    arch::naked_asm,
+    cell::UnsafeCell,
+    hint::unreachable_unchecked,
+    mem::{forget, offset_of},
+    ptr::null_mut,
 };
 
 use alloc::{collections::vec_deque::VecDeque, rc::Rc};
@@ -105,10 +109,14 @@ pub unsafe fn switch_task(new_task: Rc<UnsafeCell<Task>>) {
         let old_task_ptr = old_task.as_ref().map_or(null_mut(), |v| v.get());
 
         // Put the current task back to the ready queue
-        if let Some(old_task) = old_task
-            && (*old_task.get()).state != TaskState::Terminated
-        {
-            READY_TASKS.push_back(old_task);
+        if let Some(old_task) = old_task {
+            if (*old_task.get()).state != TaskState::Terminated {
+                READY_TASKS.push_back(old_task);
+            } else {
+                // TODO: Free task properly
+                // We can't free the task here because we are still using its stack. For now, just leak the task.
+                forget(old_task);
+            }
         }
 
         // Perform the actual context switch
