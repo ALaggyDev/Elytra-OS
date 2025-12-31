@@ -38,10 +38,10 @@ use crate::{
     user::{address_space::AddressSpace, elf_parser::ElfParser},
 };
 
-pub const USER_STACK_SIZE: usize = 2 * PAGE_SIZE; // 8 KiB
+pub const USER_STACK_SIZE: usize = 4 * PAGE_SIZE; // 16 KiB
 pub const USER_STACK_VADDR: usize = 0x00007ffffff00000; // Bottom of user stack
 
-pub const KERNEL_STACK_SIZE: usize = 2 * PAGE_SIZE; // 8 KiB
+pub const KERNEL_STACK_SIZE: usize = 4 * PAGE_SIZE; // 16 KiB
 
 /// Represents a task (i.e. thread) in the OS.
 #[derive(Debug)]
