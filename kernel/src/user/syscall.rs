@@ -81,12 +81,12 @@ pub extern "C" fn syscall_entry() {
 
         "add rsp, 56",               // Clean up SyscallArgs
 
-        "xor rdi, rdi",              // Clear registers to prevent leaking data to user mode
-        "xor rsi, rsi",              // (caller-saved registers, rax, rcx and r11 are ignored)
-        "xor rdx, rdx",
-        "xor r8, r8",
-        "xor r9, r9",
-        "xor r10, r10",
+        "xor edi, edi",              // Clear registers to prevent leaking data to user mode
+        "xor esi, esi",              // (caller-saved registers, rax, rcx and r11 are ignored)
+        "xor edx, edx",
+        "xor r8d, r8d",
+        "xor r9d, r9d",
+        "xor r10d, r10d",
 
         "pop rcx",                   // Restore rcx (user rip)
         "pop r11",                   // Restore r11 (user rflags)
