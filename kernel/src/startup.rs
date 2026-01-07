@@ -5,8 +5,8 @@ use bootloader_api::{BootInfo, info::MemoryRegionKind};
 use crate::{
     gdt,
     helper::{self, p2v},
-    idt,
-    io::{port::outb, serial},
+    idt::{self, enable_interrupt},
+    io::serial,
     mem::{
         buddy,
         page_table::{self, PageDirectoryEntry},
@@ -26,7 +26,6 @@ pub(crate) fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 // Initialize the kernel.
 fn init(boot_info: &'static mut BootInfo) {
     unsafe {
-        pic_disable();
         serial::init();
         init_mem_paging();
         gdt::init();
@@ -35,14 +34,8 @@ fn init(boot_info: &'static mut BootInfo) {
         init_buddy_allocator(boot_info);
 
         syscall::init();
-    }
-}
 
-// Disable the 8259 PIC. rust-osdev bootloader doesn't do this for us.
-fn pic_disable() {
-    unsafe {
-        outb(0x21, 0xFF);
-        outb(0xA1, 0xFF);
+        enable_interrupt();
     }
 }
 

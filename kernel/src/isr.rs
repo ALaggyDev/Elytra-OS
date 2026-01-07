@@ -1,4 +1,15 @@
-use crate::{helper, printkln};
+use pc_keyboard::{DecodedKey, HandleControl, Keyboard, ScancodeSet1, layouts::Us104Key};
+
+use crate::{helper, idt::PICS, io::port::inb, printk, printkln};
+
+// Interrupts are enabled for most of the time in the kernel.
+// For code that should not be interrupted (e.g. context switch), use cli/sti instructions.
+//
+// Basic rules for interrupt handlers: (Interrupt 101)
+// 1. Should be short (this improves input latency and avoid making mistakes)
+// 2. Should be "async-safe" (no locks, no allocations, etc.)
+// 3. Should prevent re-entrancy (to avoid stack overflow) (e.g. using interrupt gate, avoid nested interrupt, etc.)
+// Every function that interrupt handlers call should also follow these rules.
 
 #[repr(C)]
 #[derive(Debug)]
@@ -8,6 +19,13 @@ pub struct InterruptStackFrame {
     pub flags: usize,
     pub sp: usize,
     pub ss: usize,
+}
+
+impl InterruptStackFrame {
+    /// Returns true if the interrupt occurred in user mode.
+    pub fn is_user_mode(&self) -> bool {
+        self.cs & 0b11 != 0
+    }
 }
 
 const INTERRUPT_NAMES: [&str; 22] = [
@@ -160,4 +178,37 @@ pub(super) unsafe extern "x86-interrupt" fn isr_20(frame: InterruptStackFrame) {
 pub(super) unsafe extern "x86-interrupt" fn isr_21(frame: InterruptStackFrame, err_code: usize) {
     print_info_with_err(21, &frame, err_code);
     helper::hcf();
+}
+
+// --- Interrupt by PICs ---
+
+// Vector: 0x20
+pub(super) unsafe extern "x86-interrupt" fn pic_timer_handler(_: InterruptStackFrame) {
+    printk!(".");
+
+    unsafe { PICS.notify_end_of_interrupt(0x20) };
+}
+
+static mut KEYBOARD: Keyboard<Us104Key, ScancodeSet1> =
+    Keyboard::new(ScancodeSet1::new(), Us104Key, HandleControl::Ignore);
+
+// Vector: 0x21
+pub(super) unsafe extern "x86-interrupt" fn pic_keyboard_handler(_: InterruptStackFrame) {
+    let scancode = unsafe { inb(0x60) };
+
+    let keyboard = unsafe { &mut KEYBOARD };
+    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
+        if let Some(key) = keyboard.process_keyevent(key_event) {
+            match key {
+                DecodedKey::RawKey(key) => {
+                    printk!("{:?}", key);
+                }
+                DecodedKey::Unicode(character) => {
+                    printk!("{}", character);
+                }
+            }
+        }
+    }
+
+    unsafe { PICS.notify_end_of_interrupt(0x21) };
 }

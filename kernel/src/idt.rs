@@ -2,6 +2,7 @@ use core::arch::asm;
 
 use arbitrary_int::{u2, u3};
 use bitbybit::{bitenum, bitfield};
+use pic8259::ChainedPics;
 
 use crate::{gdt::KERNEL_CODE_SELECTOR, isr};
 
@@ -49,6 +50,10 @@ static mut IDTR: Idtr = Idtr {
     base: core::ptr::null(),
 };
 
+// 8259 PIC
+pub const PIC_OFFSET: u8 = 0x20;
+pub static mut PICS: ChainedPics = unsafe { ChainedPics::new_contiguous(PIC_OFFSET) };
+
 fn to_entry(func: *const ()) -> Entry {
     Entry::ZERO
         .with_offset(func as u64)
@@ -86,20 +91,40 @@ pub unsafe fn init() {
     idt.0[20] = to_entry(isr::isr_20 as *const ());
     idt.0[21] = to_entry(isr::isr_21 as *const ());
 
+    idt.0[0x20] = to_entry(isr::pic_timer_handler as *const ());
+    idt.0[0x21] = to_entry(isr::pic_keyboard_handler as *const ());
+
     // Setup idtr
 
     let idtr = unsafe { &mut IDTR };
     idtr.size = (core::mem::size_of::<Idt>() - 1) as u16;
     idtr.base = unsafe { &IDT } as *const Idt;
 
-    // Load idt and set interrupt flag
+    // Load idt
 
     unsafe {
         asm!(
             "lidt [{}]",
-            "sti",
             in(reg) idtr,
             options(nostack)
         );
+    }
+
+    // Setup PICs
+    unsafe {
+        PICS.initialize();
+        PICS.write_masks(0b11111100, 0b11111111);
+    }
+}
+
+pub unsafe fn enable_interrupt() {
+    unsafe {
+        asm!("sti", options(nostack, nomem));
+    }
+}
+
+pub unsafe fn disable_interrupt() {
+    unsafe {
+        asm!("cli", options(nostack, nomem));
     }
 }

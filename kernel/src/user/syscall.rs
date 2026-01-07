@@ -60,6 +60,8 @@ pub extern "C" fn syscall_entry() {
 
         "push [rip + {0}]",          // Save user rsp
 
+        "sti",                       // Enable interrupts
+
         "push r11",                  // Save r11 (user rflags)
         "push rcx",                  // Save rcx (user rip)
 
@@ -90,6 +92,8 @@ pub extern "C" fn syscall_entry() {
 
         "pop rcx",                   // Restore rcx (user rip)
         "pop r11",                   // Restore r11 (user rflags)
+
+        "cli",                       // Disable interrupts
 
         "pop rsp",                   // Restore user rsp
 
