@@ -1,6 +1,7 @@
 use core::{mem::MaybeUninit, ptr, slice};
 
 use bitvec::slice::BitSlice;
+use spin::Mutex;
 
 use crate::{
     consts::PAGE_SIZE,
@@ -23,10 +24,18 @@ pub struct BuddyAllocator {
     buckets: [Bucket; MAX_ORDER + 1],
 }
 
-pub static mut BUDDY_ALLOCATOR: BuddyAllocator = unsafe { MaybeUninit::zeroed().assume_init() };
+unsafe impl Send for BuddyAllocator {}
+unsafe impl Sync for BuddyAllocator {}
 
+// This is really annoying, because when creating DoublyListHead, the next and prev pointers point to itself (self-referential struct).
+// Here is a hacky way to initialize it. Hopefully I can find a better way in the future.
+
+pub static BUDDY_ALLOCATOR: Mutex<BuddyAllocator> =
+    Mutex::new(unsafe { MaybeUninit::zeroed().assume_init() });
+
+// We can't initialize the buddy allocator in Rust style, because of the self-referential issue :(
 pub unsafe fn init(memory: *mut [u8]) {
-    let allocator = unsafe { &mut BUDDY_ALLOCATOR };
+    let mut allocator = BUDDY_ALLOCATOR.lock();
 
     // Initialize free lists and bitmaps for each order.
 
@@ -54,112 +63,134 @@ pub unsafe fn init(memory: *mut [u8]) {
     allocator.used = 0;
 }
 
-// Get bit index for bitmap.
-fn bit_idx(page: *mut u8, order: usize) -> usize {
-    let offset = page as usize - unsafe { &BUDDY_ALLOCATOR }.memory.addr();
-    (offset / PAGE_SIZE) >> (order + 1)
-}
+impl BuddyAllocator {
+    pub unsafe fn alloc_pages_order(&mut self, order: usize) -> *mut u8 {
+        assert!(order <= MAX_ORDER);
 
-// Toggle bitmap at index.
-fn toggle_bitmap(bitmap: &mut BitSlice<u8>, idx: usize) {
-    bitmap.set(idx, !bitmap[idx]);
+        // Search for a free block in the free list
+        if unsafe { !DoublyListHead::is_empty(&raw mut self.buckets[order].free_list) } {
+            // Found a free block
+            let page = self.buckets[order].free_list.next;
+
+            // Remove the block from the free list
+            unsafe { DoublyListHead::delete(page) };
+
+            // Toggle the bitmap
+            if order != MAX_ORDER {
+                self.toggle_bitmap(order, page as *mut u8);
+            }
+
+            page as *mut u8
+        } else if order == MAX_ORDER {
+            // Allocate a new block from the memory pool
+
+            if self.used + SIZE_OF_MAX_ORDER > self.memory.len() {
+                return ptr::null_mut();
+            }
+
+            let page = unsafe { (self.memory as *mut u8).add(self.used) };
+            self.used += SIZE_OF_MAX_ORDER;
+
+            page
+        } else {
+            // Otherwise, try to split a larger block
+            let buddies = unsafe { self.alloc_pages_order(order + 1) };
+            if buddies.is_null() {
+                return ptr::null_mut();
+            }
+
+            // Calculate the address of the buddy block
+            let buddy = unsafe { buddies.add(PAGE_SIZE << order) };
+
+            // Insert the buddy into the free list
+            unsafe {
+                DoublyListHead::insert_after(
+                    &raw mut self.buckets[order].free_list,
+                    buddy as *mut DoublyListHead,
+                )
+            };
+
+            // Toggle the bitmap
+            self.toggle_bitmap(order, buddy);
+
+            buddies
+        }
+    }
+
+    pub unsafe fn free_pages_order(&mut self, page: *mut u8, order: usize) {
+        assert!(order <= MAX_ORDER);
+
+        if order == MAX_ORDER {
+            // Just add it to the free list
+            unsafe {
+                DoublyListHead::insert_after(
+                    &raw mut self.buckets[order].free_list,
+                    page as *mut DoublyListHead,
+                )
+            };
+            return;
+        }
+
+        self.toggle_bitmap(order, page);
+
+        if self.get_bitmap(order, page) {
+            // Buddy is not freed
+
+            unsafe {
+                DoublyListHead::insert_after(
+                    &raw mut self.buckets[order].free_list,
+                    page as *mut DoublyListHead,
+                )
+            };
+        } else {
+            // Buddy is freed
+
+            // Calculate buddy address
+            let buddy = (page.addr() ^ (PAGE_SIZE << order)) as *mut u8;
+
+            // Remove buddy from free list
+            unsafe { DoublyListHead::delete(buddy as *mut DoublyListHead) };
+
+            // Merge buddies
+            let merged = if page.addr() < buddy.addr() {
+                page
+            } else {
+                buddy
+            };
+            unsafe { self.free_pages_order(merged, order + 1) };
+        }
+    }
+
+    // Get bit index for bitmap.
+    fn bit_idx(&self, page: *mut u8, order: usize) -> usize {
+        let offset = page as usize - self.memory.addr();
+        (offset / PAGE_SIZE) >> (order + 1)
+    }
+
+    // Get bitmap at index.
+    fn get_bitmap(&self, order: usize, page: *mut u8) -> bool {
+        let bitmap = unsafe { &*self.buckets[order].bitmap };
+        bitmap[self.bit_idx(page, order)]
+    }
+
+    // Toggle bitmap at index.
+    fn toggle_bitmap(&mut self, order: usize, page: *mut u8) {
+        let bitmap = unsafe { &mut *self.buckets[order].bitmap };
+        let idx = self.bit_idx(page, order);
+        bitmap.set(idx, !bitmap[idx]);
+    }
 }
 
 pub unsafe fn alloc_pages_order(order: usize) -> *mut u8 {
-    assert!(order <= MAX_ORDER);
+    let mut allocator = BUDDY_ALLOCATOR.lock();
 
-    let allocator = unsafe { &mut BUDDY_ALLOCATOR };
-    let bucket = &mut allocator.buckets[order];
-
-    // Search for a free block in the free list
-    if unsafe { !DoublyListHead::is_empty(&raw mut bucket.free_list) } {
-        // Found a free block
-        let page = bucket.free_list.next;
-
-        // Remove the block from the free list
-        unsafe { DoublyListHead::delete(page) };
-
-        // Toggle the bitmap
-        if order != MAX_ORDER {
-            toggle_bitmap(
-                unsafe { &mut *bucket.bitmap },
-                bit_idx(page as *mut u8, order),
-            );
-        }
-
-        page as *mut u8
-    } else if order == MAX_ORDER {
-        // Allocate a new block from the memory pool
-
-        if allocator.used + SIZE_OF_MAX_ORDER > allocator.memory.len() {
-            return ptr::null_mut();
-        }
-
-        let page = unsafe { (allocator.memory as *mut u8).add(allocator.used) };
-        allocator.used += SIZE_OF_MAX_ORDER;
-
-        page
-    } else {
-        // Otherwise, try to split a larger block
-        let buddies = unsafe { alloc_pages_order(order + 1) };
-        if buddies.is_null() {
-            return ptr::null_mut();
-        }
-
-        // Calculate the address of the buddy block
-        let buddy = unsafe { buddies.add(PAGE_SIZE << order) };
-
-        // Insert the buddy into the free list
-        unsafe {
-            DoublyListHead::insert_after(&raw mut bucket.free_list, buddy as *mut DoublyListHead)
-        };
-
-        // Toggle the bitmap
-        toggle_bitmap(unsafe { &mut *bucket.bitmap }, bit_idx(buddy, order));
-
-        buddies
-    }
+    unsafe { allocator.alloc_pages_order(order) }
 }
 
 pub unsafe fn free_pages_order(page: *mut u8, order: usize) {
-    assert!(order <= MAX_ORDER);
+    let mut allocator = BUDDY_ALLOCATOR.lock();
 
-    let allocator = unsafe { &mut BUDDY_ALLOCATOR };
-    let bucket = &mut allocator.buckets[order];
-
-    if order == MAX_ORDER {
-        // Just add it to the free list
-        unsafe {
-            DoublyListHead::insert_after(&raw mut bucket.free_list, page as *mut DoublyListHead)
-        };
-        return;
-    }
-
-    toggle_bitmap(unsafe { &mut *bucket.bitmap }, bit_idx(page, order));
-
-    if unsafe { &mut *bucket.bitmap }[bit_idx(page, order)] {
-        // Buddy is not freed
-
-        unsafe {
-            DoublyListHead::insert_after(&raw mut bucket.free_list, page as *mut DoublyListHead)
-        };
-    } else {
-        // Buddy is freed
-
-        // Calculate buddy address
-        let buddy = (page.addr() ^ (PAGE_SIZE << order)) as *mut u8;
-
-        // Remove buddy from free list
-        unsafe { DoublyListHead::delete(buddy as *mut DoublyListHead) };
-
-        // Merge buddies
-        let merged = if page.addr() < buddy.addr() {
-            page
-        } else {
-            buddy
-        };
-        unsafe { free_pages_order(merged, order + 1) };
-    }
+    unsafe { allocator.free_pages_order(page, order) }
 }
 
 #[inline]

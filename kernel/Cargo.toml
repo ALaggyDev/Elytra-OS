@@ -15,3 +15,4 @@ arbitrary-int = "2.0.0"
 bitvec = { version = "1.0.1", default-features = false }
 pic8259 = "0.11.0"
 pc-keyboard = "0.8.0"
+spin = "0.10.0"

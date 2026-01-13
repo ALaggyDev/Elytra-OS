@@ -33,13 +33,13 @@ pub fn test() {
 fn test_buddy_alloc() {
     unsafe {
         let ptr1 = buddy::alloc_pages_order(0);
-        printkln!("Allocated page at: {:#x}", ptr1 as usize);
+        printkln!("Allocated 1 page at: {:#x}", ptr1 as usize);
 
         let ptr2 = buddy::alloc_pages_order(1);
         printkln!("Allocated 2 pages at: {:#x}", ptr2 as usize);
 
         let ptr3 = buddy::alloc_pages_order(0);
-        printkln!("Allocated 4 pages at: {:#x}", ptr3 as usize);
+        printkln!("Allocated 1 page at: {:#x}", ptr3 as usize);
 
         ptr1.write_bytes(b'A', 64);
 

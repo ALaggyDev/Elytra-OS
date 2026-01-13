@@ -1,4 +1,8 @@
-use core::fmt;
+use core::fmt::{self, Write};
+
+use spin::Mutex;
+
+use crate::idt::{disable_interrupt, enable_interrupt};
 
 use super::port::*;
 
@@ -28,25 +32,27 @@ pub unsafe fn init() -> bool {
     }
 }
 
-pub fn received() -> bool {
+#[allow(unused)]
+fn received() -> bool {
     unsafe { (inb(PORT + 5) & 1) != 0 }
 }
 
-pub fn read() -> u8 {
+#[allow(unused)]
+fn read() -> u8 {
     while !received() {}
     unsafe { inb(PORT) }
 }
 
-pub fn can_write() -> bool {
+fn can_write() -> bool {
     unsafe { (inb(PORT + 5) & 0x20) != 0 }
 }
 
-pub fn write_u8(val: u8) {
+fn write_u8(val: u8) {
     while !can_write() {}
     unsafe { outb(PORT, val) }
 }
 
-pub fn write_str(s: &str) {
+fn write_str(s: &str) {
     for byte in s.bytes() {
         if byte == b'\n' {
             write_u8(b'\r');
@@ -57,7 +63,7 @@ pub fn write_str(s: &str) {
 
 struct Serial;
 
-static mut SERIAL: Serial = Serial;
+static SERIAL: Mutex<Serial> = Mutex::new(Serial);
 
 impl fmt::Write for Serial {
     fn write_str(&mut self, s: &str) -> fmt::Result {
@@ -68,10 +74,10 @@ impl fmt::Write for Serial {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    use core::fmt::Write;
-    unsafe {
-        SERIAL.write_fmt(args).unwrap();
-    }
+    unsafe { disable_interrupt() };
+    let res = SERIAL.lock().write_fmt(args);
+    unsafe { enable_interrupt() };
+    res.unwrap();
 }
 
 #[macro_export]

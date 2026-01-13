@@ -6,10 +6,11 @@
 
 use core::{
     alloc::{GlobalAlloc, Layout},
-    cell::UnsafeCell,
     cmp::{max, min},
     ptr::{self, null_mut},
 };
+
+use spin::Mutex;
 
 use crate::{
     consts::PAGE_SIZE,
@@ -155,35 +156,33 @@ impl SlabAllocator {
     }
 }
 
-#[derive(Debug)]
-pub struct SlabAllocatorWrapper(UnsafeCell<SlabAllocator>);
+unsafe impl Send for SlabAllocator {}
+unsafe impl Sync for SlabAllocator {}
 
-unsafe impl Sync for SlabAllocatorWrapper {}
+#[derive(Debug)]
+pub struct SlabAllocatorWrapper(Mutex<SlabAllocator>);
 
 unsafe impl GlobalAlloc for SlabAllocatorWrapper {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let size = max(layout.size(), layout.align());
 
-        let allocator = unsafe { &mut *self.0.get() };
-        unsafe { allocator.alloc(size) }
+        unsafe { self.0.lock().alloc(size) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         let size = max(layout.size(), layout.align());
 
-        let allocator = unsafe { &mut *self.0.get() };
-        unsafe { allocator.dealloc(ptr, size) }
+        unsafe { self.0.lock().dealloc(ptr, size) }
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let old_size = max(layout.size(), layout.align());
         let new_size = max(new_size, layout.align());
 
-        let allocator = unsafe { &mut *self.0.get() };
-        unsafe { allocator.realloc(ptr, old_size, new_size) }
+        unsafe { self.0.lock().realloc(ptr, old_size, new_size) }
     }
 }
 
 #[global_allocator]
 pub static SLAB_ALLOCATOR: SlabAllocatorWrapper =
-    SlabAllocatorWrapper(UnsafeCell::new(SlabAllocator::new()));
+    SlabAllocatorWrapper(Mutex::new(SlabAllocator::new()));
