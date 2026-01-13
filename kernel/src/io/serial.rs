@@ -2,7 +2,7 @@ use core::fmt::{self, Write};
 
 use spin::Mutex;
 
-use crate::idt::{disable_interrupt, enable_interrupt};
+use crate::idt::without_interrupt;
 
 use super::port::*;
 
@@ -74,10 +74,7 @@ impl fmt::Write for Serial {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    unsafe { disable_interrupt() };
-    let res = SERIAL.lock().write_fmt(args);
-    unsafe { enable_interrupt() };
-    res.unwrap();
+    without_interrupt(|| SERIAL.lock().write_fmt(args)).unwrap();
 }
 
 #[macro_export]

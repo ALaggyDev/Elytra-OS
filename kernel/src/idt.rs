@@ -117,14 +117,38 @@ pub unsafe fn init() {
     }
 }
 
-pub unsafe fn enable_interrupt() {
+pub fn enable_interrupt() {
     unsafe {
-        asm!("sti", options(nostack, nomem));
+        asm!("sti", options(nostack, preserves_flags));
     }
 }
 
-pub unsafe fn disable_interrupt() {
+pub fn disable_interrupt() {
     unsafe {
-        asm!("cli", options(nostack, nomem));
+        asm!("cli", options(nostack, preserves_flags));
+    }
+}
+
+pub fn without_interrupt<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    unsafe {
+        let rflags: usize;
+        asm!("pushfq; pop {}", out(reg) rflags, options(nomem, preserves_flags));
+
+        let was_enabled = (rflags & (1 << 9)) != 0;
+
+        if was_enabled {
+            disable_interrupt();
+        }
+
+        let result = f();
+
+        if was_enabled {
+            enable_interrupt();
+        }
+
+        result
     }
 }
