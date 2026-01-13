@@ -12,7 +12,7 @@ use crate::{
     consts,
     gdt::{TSS, Tss},
     helper::hcf,
-    printkln,
+    printlnk,
     user::{
         syscall,
         task::{KERNEL_STACK_SIZE, Task, TaskState},
@@ -84,7 +84,7 @@ unsafe fn yield_task_must_swap() {
     unsafe {
         let Some(next_task) = READY_TASKS.pop_front() else {
             // No other ready task, continue the current task
-            printkln!("All tasks terminated. Halting CPU...");
+            printlnk!("All tasks terminated. Halting CPU...");
             hcf();
         };
 

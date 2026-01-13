@@ -11,7 +11,7 @@ use crate::{
         buddy,
         page_table::{self, PageDirectoryEntry},
     },
-    printkln, test,
+    printlnk, test,
     user::{address_space::KERNEL_P4_TABLE, syscall},
 };
 
@@ -66,7 +66,7 @@ fn init_buddy_allocator(boot_info: &'static mut BootInfo) {
         .max_by_key(|region| region.end - region.start)
         .unwrap();
 
-    printkln!(
+    printlnk!(
         "Initializing buddy allocator with region: {:#x} - {:#x}",
         biggest_region.start,
         biggest_region.end

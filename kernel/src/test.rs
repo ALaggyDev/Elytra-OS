@@ -9,7 +9,7 @@ use crate::{
         buddy,
         page_table::{get_active_page_directory, resolve_virt_addr, set_active_page_directory},
     },
-    printkln,
+    printlnk,
     user::{
         address_space::{AddressSpace, KERNEL_P4_TABLE},
         elf_parser::ElfParser,
@@ -20,7 +20,7 @@ use crate::{
 
 // Run test.
 pub fn test() {
-    printkln!("Here is a number: {}", 42);
+    printlnk!("Here is a number: {}", 42);
 
     test_buddy_alloc();
     test_slab_alloc();
@@ -33,17 +33,17 @@ pub fn test() {
 fn test_buddy_alloc() {
     unsafe {
         let ptr1 = buddy::alloc_pages_order(0);
-        printkln!("Allocated 1 page at: {:#x}", ptr1 as usize);
+        printlnk!("Allocated 1 page at: {:#x}", ptr1 as usize);
 
         let ptr2 = buddy::alloc_pages_order(1);
-        printkln!("Allocated 2 pages at: {:#x}", ptr2 as usize);
+        printlnk!("Allocated 2 pages at: {:#x}", ptr2 as usize);
 
         let ptr3 = buddy::alloc_pages_order(0);
-        printkln!("Allocated 1 page at: {:#x}", ptr3 as usize);
+        printlnk!("Allocated 1 page at: {:#x}", ptr3 as usize);
 
         ptr1.write_bytes(b'A', 64);
 
-        printkln!(
+        printlnk!(
             "Wrote to first allocated page: {:x?}",
             *(ptr1 as *const u64)
         );
@@ -58,28 +58,28 @@ fn test_slab_alloc() {
     let a = Box::new(2);
     let mut b = vec![1, 2, 3, 4, 5];
 
-    printkln!("Boxed integer: {}", a);
-    printkln!("Box address: {:#x}", &*a as *const i32 as usize);
+    printlnk!("Boxed integer: {}", a);
+    printlnk!("Box address: {:#x}", &*a as *const i32 as usize);
 
     drop(a);
 
     let a = Box::new(3);
 
-    printkln!("Boxed integer: {}", a);
-    printkln!("Box address: {:#x}", &*a as *const i32 as usize);
+    printlnk!("Boxed integer: {}", a);
+    printlnk!("Box address: {:#x}", &*a as *const i32 as usize);
 
-    printkln!("Vector: {:?}", b);
-    printkln!("Vector address: {:#x}", b.as_ptr() as usize);
+    printlnk!("Vector: {:?}", b);
+    printlnk!("Vector address: {:#x}", b.as_ptr() as usize);
 
     for i in 0..20 {
         b.push(i);
     }
 
-    printkln!("Vector: {:?}", b);
-    printkln!("Vector address: {:#x}", b.as_ptr() as usize);
+    printlnk!("Vector: {:?}", b);
+    printlnk!("Vector address: {:#x}", b.as_ptr() as usize);
 
     let c = Box::new([0u8; 6000]);
-    printkln!(
+    printlnk!(
         "Large Box address: {:#x}",
         &*c as *const [u8; 6000] as usize
     );
@@ -87,7 +87,7 @@ fn test_slab_alloc() {
     drop(c);
 
     let c = Box::new([0u8; 6000]);
-    printkln!(
+    printlnk!(
         "Large Box address: {:#x}",
         &*c as *const [u8; 6000] as usize
     );
@@ -99,15 +99,15 @@ fn test_paging() {
     unsafe {
         let phys_addr =
             resolve_virt_addr(get_active_page_directory(), &raw const val as usize).unwrap();
-        printkln!("Physical address: {:#x}", phys_addr);
+        printlnk!("Physical address: {:#x}", phys_addr);
 
         let val_copy = *(p2v(phys_addr) as *const usize);
-        printkln!("Value copied from physical address: {:#x}", val_copy);
+        printlnk!("Value copied from physical address: {:#x}", val_copy);
 
         assert_eq!(val, val_copy);
 
         *(p2v(phys_addr) as *mut usize) = 0xdeadbeef;
-        printkln!("Modified value: {:#x}", val);
+        printlnk!("Modified value: {:#x}", val);
     }
 }
 

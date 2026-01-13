@@ -1,6 +1,6 @@
 use pc_keyboard::{DecodedKey, HandleControl, Keyboard, ScancodeSet1, layouts::Us104Key};
 
-use crate::{helper, idt::PICS, io::port::inb, printk, printkln};
+use crate::{helper, idt::PICS, io::port::inb, printk, printlnk};
 
 // Interrupts are enabled for most of the time in the kernel.
 // For code that should not be interrupted (e.g. context switch), use cli/sti instructions.
@@ -54,7 +54,7 @@ const INTERRUPT_NAMES: [&str; 22] = [
 ];
 
 fn print_info(num: usize, frame: &InterruptStackFrame) {
-    printkln!(
+    printlnk!(
         "Received interrupt: {}\nFrame: {:#x?}",
         INTERRUPT_NAMES[num],
         frame
@@ -62,7 +62,7 @@ fn print_info(num: usize, frame: &InterruptStackFrame) {
 }
 
 fn print_info_with_err(num: usize, frame: &InterruptStackFrame, err_code: usize) {
-    printkln!(
+    printlnk!(
         "Received interrupt: {}\nFrame: {:#x?}\nError Code: {:#x}",
         INTERRUPT_NAMES[num],
         frame,

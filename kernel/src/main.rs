@@ -27,7 +27,7 @@ pub mod user;
 /// This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    printkln!("Kernel panic!\n{:#?}", info);
+    printlnk!("Kernel panic!\n{:#?}", info);
     helper::hcf();
 }
 
