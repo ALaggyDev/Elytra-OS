@@ -6,7 +6,7 @@ use crate::{
     gdt,
     helper::{self, p2v},
     idt::{self, enable_interrupt},
-    io::serial,
+    io::output,
     mem::{
         buddy,
         page_table::{self, PageDirectoryEntry},
@@ -26,7 +26,7 @@ pub(crate) fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 // Initialize the kernel.
 fn init(boot_info: &'static mut BootInfo) {
     unsafe {
-        serial::init();
+        output::init(boot_info);
         init_mem_paging();
         gdt::init();
         idt::init();
@@ -58,7 +58,7 @@ fn init_mem_paging() {
     }
 }
 
-fn init_buddy_allocator(boot_info: &'static mut BootInfo) {
+fn init_buddy_allocator(boot_info: &BootInfo) {
     let biggest_region = boot_info
         .memory_regions
         .iter()

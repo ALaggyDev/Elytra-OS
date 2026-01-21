@@ -16,6 +16,10 @@ struct Args {
     /// Use GDB to debug the kernel
     #[arg(long)]
     gdb: bool,
+
+    /// Disable graphical output in QEMU
+    #[arg(long)]
+    nographic: bool,
 }
 
 /// Convert Windows path to relative path (that can be used in WSL)
@@ -47,7 +51,9 @@ fn main() {
     }
 
     // Use serial as output device and disable graphical output
-    cmd.arg("-nographic");
+    if args.nographic {
+        cmd.arg("-nographic");
+    }
     // Enable the guest to exit qemu
     cmd.arg("-device")
         .arg("isa-debug-exit,iobase=0xf4,iosize=0x04");

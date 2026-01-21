@@ -16,3 +16,9 @@ bitvec = { version = "1.0.1", default-features = false }
 pic8259 = "0.11.0"
 pc-keyboard = "0.8.0"
 spin = "0.10.0"
+noto-sans-mono-bitmap = { version = "0.3.2", default-features = false, features = [
+    "size_20",
+    "regular",
+    "unicode-basic-latin",
+    "unicode-specials",
+] }

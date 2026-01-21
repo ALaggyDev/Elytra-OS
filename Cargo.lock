@@ -330,6 +330,7 @@ dependencies = [
  "bitbybit",
  "bitvec",
  "bootloader_api",
+ "noto-sans-mono-bitmap",
  "pc-keyboard",
  "pic8259",
  "spin",
@@ -386,6 +387,12 @@ name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
+
+[[package]]
+name = "noto-sans-mono-bitmap"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f102c477fd4ec864c149803bf606ecc23bc9329602ec0f99073a728abf454abc"
 
 [[package]]
 name = "once_cell"
