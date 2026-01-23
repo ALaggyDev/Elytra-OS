@@ -6,12 +6,14 @@
 //!   RAX: return value
 //!   Caller-saved and callee-saved registers are the same as System V AMD64 ABI.
 
-use core::arch::naked_asm;
+pub mod memcpy;
+
+use core::{arch::naked_asm, ptr::slice_from_raw_parts};
 
 use crate::{
     msr::{IA32_EFER, IA32_FMASK, IA32_LSTAR, IA32_STAR, read_msr, write_msr},
-    printlnk,
-    user::sched,
+    printk, printlnk,
+    user::{sched, syscall::memcpy::copy_from_user_slice},
 };
 
 pub fn init() {
@@ -106,32 +108,41 @@ pub extern "C" fn syscall_entry() {
 }
 
 pub extern "C" fn syscall_handler(args: &mut SyscallArgs) -> usize {
-    printlnk!("Syscall received! Args: {:#x?}", args);
-
     match args.num {
-        0 => {
-            printlnk!("Syscall 0: exit");
-
-            printlnk!("Exiting task {:#p}", unsafe {
-                sched::CURRENT_TASK.as_ref().unwrap().get()
-            });
-
-            unsafe { sched::kill_task() };
-        }
-        1 => {
-            printlnk!("Syscall 1: yield");
-
-            printlnk!("Yielding task {:#p}", unsafe {
-                sched::CURRENT_TASK.as_ref().unwrap().get()
-            });
-
-            unsafe { sched::yield_task() };
-
-            0
-        }
+        0 => sys_exit(args),
+        1 => sys_yield(args),
+        2 => sys_print(args),
         _ => {
             printlnk!("Unknown syscall number: {}", args.num);
             usize::MAX
         }
     }
+}
+
+fn sys_exit(_: &mut SyscallArgs) -> usize {
+    printlnk!("Syscall 0: exit");
+
+    unsafe { sched::kill_task() };
+}
+
+fn sys_yield(_: &mut SyscallArgs) -> usize {
+    printlnk!("Syscall 1: yield");
+
+    unsafe { sched::yield_task() };
+
+    0
+}
+
+fn sys_print(args: &mut SyscallArgs) -> usize {
+    printlnk!("Syscall 2: print");
+
+    let msg = slice_from_raw_parts(args.arg1 as *const u8, args.arg2);
+
+    let msg = unsafe { copy_from_user_slice(msg) }.unwrap();
+
+    let msg = str::from_utf8(&msg).unwrap();
+
+    printk!("{}", msg);
+
+    0
 }
