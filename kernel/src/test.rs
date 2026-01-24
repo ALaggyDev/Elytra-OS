@@ -156,19 +156,34 @@ fn test_scheduler() {
     let parser = ElfParser::parse(ELF_BINARY).unwrap();
 
     // Create tasks
-    let task1 = Task::create_task_from_elf(&parser).unwrap();
-    let task2 = Task::create_task_from_elf(&parser).unwrap();
+    let task1 = Task::create_user_task_from_elf(&parser).unwrap();
+    let task2 = Task::create_user_task_from_elf(&parser).unwrap();
+    let task3 = Task::create_kernel_task(kernel_task_entry);
 
     // Move tasks to heap
     let task1 = Rc::new(UnsafeCell::new(task1));
     let task2 = Rc::new(UnsafeCell::new(task2));
+    let task3 = Rc::new(UnsafeCell::new(task3));
 
     unsafe {
         // Add tasks to scheduler
         sched::add_new_task(task1);
         sched::add_new_task(task2);
+        sched::add_new_task(task3);
 
         // Begin scheduler (task1 should run first)
         sched::begin_scheduler();
+    }
+}
+
+fn kernel_task_entry() -> ! {
+    printlnk!("Hello from kernel task!");
+
+    unsafe {
+        sched::yield_task();
+        sched::yield_task();
+
+        printlnk!("Kernel task is about to exit!");
+        sched::kill_task();
     }
 }

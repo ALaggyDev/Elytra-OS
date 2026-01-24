@@ -32,7 +32,7 @@
 
 use crate::{
     consts::PAGE_SIZE,
-    gdt::{USER_CODE_SELECTOR, USER_DATA_SELECTOR},
+    gdt::{KERNEL_CODE_SELECTOR, KERNEL_DATA_SELECTOR, USER_CODE_SELECTOR, USER_DATA_SELECTOR},
     isr::InterruptStackFrame,
     mem::buddy::{alloc_pages_panic, free_pages},
     user::{address_space::AddressSpace, elf_parser::ElfParser},
@@ -104,7 +104,7 @@ impl Drop for KernelStack {
 }
 
 impl Task {
-    pub fn create_task_from_elf(parser: &ElfParser) -> Result<Self, ()> {
+    pub fn create_user_task_from_elf(parser: &ElfParser) -> Result<Self, ()> {
         // Address space
 
         let mut addr_space = AddressSpace::new();
@@ -136,5 +136,37 @@ impl Task {
             addr_space,
             kernel_stack,
         })
+    }
+
+    pub fn create_kernel_task(entry_point: fn() -> !) -> Self {
+        // Originally, the entire task, scheduler and context switching logic are designed for user tasks only.
+        // However, it seems like it's possible to create kernel tasks with basically no modifications.
+        // So here is a simple implementation of creating a kernel task.
+
+        // Address space (ideally, kernel tasks should share the same address space as the kernel, but I am too lazy to implement it now)
+
+        let mut addr_space = AddressSpace::new();
+
+        // Map kernel pages into the new address space
+        addr_space.map_kernel_pages();
+
+        // Kernel stack
+
+        let mut kernel_stack = KernelStack::new();
+        unsafe {
+            kernel_stack.push(InterruptStackFrame {
+                ip: entry_point as usize,
+                cs: KERNEL_CODE_SELECTOR as usize,
+                flags: 0x202,
+                sp: kernel_stack.top(),
+                ss: KERNEL_DATA_SELECTOR as usize,
+            });
+        }
+
+        Task {
+            state: TaskState::New,
+            addr_space,
+            kernel_stack,
+        }
     }
 }
