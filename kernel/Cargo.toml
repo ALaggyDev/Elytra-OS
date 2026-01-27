@@ -22,3 +22,4 @@ noto-sans-mono-bitmap = { version = "0.3.2", default-features = false, features 
     "unicode-basic-latin",
     "unicode-specials",
 ] }
+qoi = { version = "0.4.1", default-features = false, features = ["alloc"] }

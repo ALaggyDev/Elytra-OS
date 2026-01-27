@@ -13,6 +13,7 @@ use crate::consts::{KERNEL_OFFSET, PHYS_MEM_OFFSET};
 
 pub mod consts;
 pub mod gdt;
+pub mod gui;
 pub mod helper;
 pub mod idt;
 pub mod io;

@@ -3,7 +3,7 @@ use core::ptr::slice_from_raw_parts_mut;
 use bootloader_api::{BootInfo, info::MemoryRegionKind};
 
 use crate::{
-    gdt,
+    gdt, gui,
     helper::{self, p2v},
     idt::{self, enable_interrupt},
     io::output,
@@ -36,6 +36,8 @@ fn init(boot_info: &'static mut BootInfo) {
         syscall::init();
 
         enable_interrupt();
+
+        gui::init(boot_info);
     }
 }
 

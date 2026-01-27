@@ -11,16 +11,16 @@ use crate::{
 static SERIAL: Mutex<Option<Serial>> = Mutex::new(None);
 static FRAMEBUFFER: Mutex<Option<FrameBufferWriter>> = Mutex::new(None);
 
-pub fn init(boot_info: &mut BootInfo) {
+pub fn init(_: &mut BootInfo) {
     // Initialize serial port
     *SERIAL.lock() = Some(Serial::new().unwrap());
 
-    // Initialize framebuffer writer, if available
-    if let Some(framebuffer) = boot_info.framebuffer.take() {
-        let info = framebuffer.info();
-        let buffer = framebuffer.into_buffer();
-        *FRAMEBUFFER.lock() = Some(FrameBufferWriter::new(buffer, info));
-    }
+    // // Initialize framebuffer writer, if available
+    // if let Some(framebuffer) = boot_info.framebuffer.take() {
+    //     let info = framebuffer.info();
+    //     let buffer = framebuffer.into_buffer();
+    //     *FRAMEBUFFER.lock() = Some(FrameBufferWriter::new(buffer, info));
+    // }
 }
 
 #[doc(hidden)]
