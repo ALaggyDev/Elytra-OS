@@ -5,6 +5,7 @@ use alloc::{boxed::Box, rc::Rc, vec};
 use crate::{
     consts::PAGE_SIZE,
     helper::p2v,
+    kernel_task_trampoline,
     mem::{
         buddy,
         page_table::{get_active_page_directory, resolve_virt_addr, set_active_page_directory},
@@ -158,7 +159,7 @@ fn test_scheduler() {
     // Create tasks
     let task1 = Task::create_user_task_from_elf(&parser).unwrap();
     let task2 = Task::create_user_task_from_elf(&parser).unwrap();
-    let task3 = Task::create_kernel_task(kernel_task_entry);
+    let task3 = Task::create_kernel_task(kernel_task_trampoline!(kernel_task_entry), Box::new(()));
 
     // Move tasks to heap
     let task1 = Rc::new(UnsafeCell::new(task1));
@@ -176,7 +177,7 @@ fn test_scheduler() {
     }
 }
 
-fn kernel_task_entry() -> ! {
+extern "C" fn kernel_task_entry(_: Box<()>) -> ! {
     printlnk!("Hello from kernel task!");
 
     unsafe {

@@ -1,8 +1,7 @@
 use core::cell::UnsafeCell;
 
-use alloc::rc::Rc;
+use alloc::{boxed::Box, rc::Rc};
 use bootloader_api::{BootInfo, info::FrameBuffer};
-use spin::Mutex;
 
 use crate::{
     color,
@@ -10,38 +9,31 @@ use crate::{
         image::QoiImage,
         structure::{AABB, Color, FrameBufferWriter},
     },
-    printlnk,
+    kernel_task_trampoline, printlnk,
     user::{sched, task::Task},
 };
 
 pub mod image;
 pub mod structure;
 
-// I am too lazy to make Task::create_kernel_task able to pass arguments right now.
-// So we just use a temporary static variable as a way to pass arguments for now.
-static TEMP_FRAMEBUFFER: Mutex<Option<FrameBuffer>> = Mutex::new(None);
-
 pub fn init(boot_info: &mut BootInfo) {
     if let Some(framebuffer) = boot_info.framebuffer.take() {
         printlnk!("Framebuffer found! Initializing GUI...");
 
-        TEMP_FRAMEBUFFER.lock().replace(framebuffer);
-
-        let gui_thread = Rc::new(UnsafeCell::new(Task::create_kernel_task(gui_thread_entry)));
+        let gui_thread = Task::create_kernel_task(
+            kernel_task_trampoline!(gui_task_entry),
+            Box::new(framebuffer),
+        );
+        let gui_thread = Rc::new(UnsafeCell::new(gui_thread));
         // GUI thread will start after the sched::begin_scheduler() is called
         unsafe { sched::add_new_task(gui_thread) }
     }
 }
 
-fn gui_thread_entry() -> ! {
+extern "C" fn gui_task_entry(framebuffer: Box<FrameBuffer>) -> ! {
     printlnk!("GUI thread started.");
 
-    let framebuffer = TEMP_FRAMEBUFFER
-        .lock()
-        .take()
-        .expect("Framebuffer should be set.");
-
-    let mut framebuffer_writer = FrameBufferWriter::new(framebuffer);
+    let mut framebuffer_writer = FrameBufferWriter::new(*framebuffer);
     let mut window = framebuffer_writer.create_new_window();
 
     // Read wallpaper QOI image

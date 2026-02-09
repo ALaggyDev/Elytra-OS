@@ -30,6 +30,8 @@
 //! |      for iretq      |
 //! |---------------------| High Address
 
+use alloc::boxed::Box;
+
 use crate::{
     consts::PAGE_SIZE,
     gdt::{KERNEL_CODE_SELECTOR, KERNEL_DATA_SELECTOR, USER_CODE_SELECTOR, USER_DATA_SELECTOR},
@@ -138,35 +140,58 @@ impl Task {
         })
     }
 
-    pub fn create_kernel_task(entry_point: fn() -> !) -> Self {
-        // Originally, the entire task, scheduler and context switching logic are designed for user tasks only.
-        // However, it seems like it's possible to create kernel tasks with basically no modifications.
-        // So here is a simple implementation of creating a kernel task.
+    /// Create a kernel task with an argument passed to the entry point function.
+    /// This function should be used in conjunction with the `kernel_task_trampoline!` macro.
+    /// Real signature of entry point: `extern "C" fn(Box<T>) -> !`.
+    pub fn create_kernel_task<T: Send>(entry: unsafe extern "C" fn() -> !, arg: Box<T>) -> Self {
+        fn inner(entry: unsafe extern "C" fn() -> !, arg: *mut ()) -> Task {
+            // Address space
+            let mut addr_space = AddressSpace::new();
 
-        // Address space (ideally, kernel tasks should share the same address space as the kernel, but I am too lazy to implement it now)
+            // Map kernel pages into the new address space
+            addr_space.map_kernel_pages();
 
-        let mut addr_space = AddressSpace::new();
+            // Kernel stack
+            let mut kernel_stack = KernelStack::new();
+            unsafe {
+                // Push argument
+                kernel_stack.push(arg);
 
-        // Map kernel pages into the new address space
-        addr_space.map_kernel_pages();
+                // Push InterruptStackFrame
+                kernel_stack.push(InterruptStackFrame {
+                    ip: entry as usize,
+                    cs: KERNEL_CODE_SELECTOR as usize,
+                    flags: 0x202,
+                    sp: kernel_stack.krsp,
+                    ss: KERNEL_DATA_SELECTOR as usize,
+                });
+            }
 
-        // Kernel stack
-
-        let mut kernel_stack = KernelStack::new();
-        unsafe {
-            kernel_stack.push(InterruptStackFrame {
-                ip: entry_point as usize,
-                cs: KERNEL_CODE_SELECTOR as usize,
-                flags: 0x202,
-                sp: kernel_stack.top(),
-                ss: KERNEL_DATA_SELECTOR as usize,
-            });
+            Task {
+                state: TaskState::New,
+                addr_space,
+                kernel_stack,
+            }
         }
 
-        Task {
-            state: TaskState::New,
-            addr_space,
-            kernel_stack,
-        }
+        inner(entry, Box::into_raw(arg) as *mut ())
     }
+}
+
+#[macro_export]
+macro_rules! kernel_task_trampoline {
+    ($f:path) => {
+        {
+            #[unsafe(naked)]
+            unsafe extern "C" fn trampoline() -> ! {
+                core::arch::naked_asm!(
+                    "mov rdi, [rsp]",
+                    "jmp {func}",
+                    func = sym $f,
+                )
+            }
+
+            trampoline
+        }
+    };
 }
