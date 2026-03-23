@@ -15,6 +15,7 @@ use crate::{
 
 pub mod image;
 pub mod structure;
+pub mod text;
 
 pub fn init(boot_info: &mut BootInfo) {
     if let Some(framebuffer) = boot_info.framebuffer.take() {
@@ -47,8 +48,8 @@ extern "C" fn gui_task_entry(framebuffer: Box<FrameBuffer>) -> ! {
 
     let window_aabb = window.aabb();
 
-    let color_1 = color!(#03cacd);
-    let color_2 = color!(#18f523);
+    let color_1 = color!(#03cacdaa);
+    let color_2 = color!(#18f523aa);
     let mut toggle = false;
     let mut num_frames = 0;
 
@@ -64,12 +65,21 @@ extern "C" fn gui_task_entry(framebuffer: Box<FrameBuffer>) -> ! {
         };
         window.set_pixels(taskbar_aabb, Color::WHITE);
 
+        // Draw text
+        text::draw_to_window(
+            &mut window,
+            "Welcome to Rusty OS!\nThis is the GUI subsystem.",
+            (10, 10),
+            color!(#0000aaaa),
+            Color::WHITE,
+        );
+
         // Draw something
         let new_aabb = AABB {
             pos: (window_aabb.pos.0 + 100, window_aabb.pos.1 + 100),
             size: (50, 50),
         };
-        window.set_pixels(new_aabb, if toggle { color_1 } else { color_2 });
+        window.overlay_opaque_pixels(new_aabb, if toggle { color_1 } else { color_2 });
         toggle = !toggle;
 
         // Copy to framebuffer
