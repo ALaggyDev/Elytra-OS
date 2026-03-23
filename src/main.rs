@@ -20,6 +20,10 @@ struct Args {
     /// Disable graphical output in QEMU
     #[arg(long)]
     nographic: bool,
+
+    /// KVM acceleration (need root privileges)
+    #[arg(long)]
+    kvm: bool,
 }
 
 /// Convert Windows path to relative path (that can be used in WSL)
@@ -47,6 +51,10 @@ fn main() {
         cmd = Command::new("qemu-system-x86_64");
     } else {
         cmd = Command::new("wsl.exe");
+        // If KVM is enabled, we need to run qemu with root privileges in WSL
+        if args.kvm {
+            cmd.arg("-u").arg("root");
+        }
         cmd.arg("--exec").arg("qemu-system-x86_64");
     }
 
@@ -57,6 +65,11 @@ fn main() {
     // Enable the guest to exit qemu
     cmd.arg("-device")
         .arg("isa-debug-exit,iobase=0xf4,iosize=0x04");
+
+    // Enable KVM acceleration
+    if args.kvm {
+        cmd.arg("-machine").arg("accel=kvm,type=q35");
+    }
 
     // Enable GDB if enabled
     if args.gdb {
