@@ -1,2 +1,13 @@
+[alias]
+kernel = "run -p xtask --"
+
 [unstable]
-bindeps = true
+feature-unification = true
+
+[resolver]
+# When this is not set, rust-analyzer will report "found duplicate lang item `panic_impl`", even if [[bin]] and [[test]] are disabled.
+# While this is fine for building the kernel, it is indeed a bit annoying.
+# The reason is because `xtask` depends on `bitvec` which by-default enables `std`.
+# Via feature unification during `cargo check --workspace`, this causes `std` to be enabled in the `kernel` crate too.
+# We therefore need to control feature unification on a per-package basis.
+feature-unification = "package"

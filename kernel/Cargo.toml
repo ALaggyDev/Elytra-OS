@@ -9,7 +9,7 @@ test = false
 bench = false
 
 [dependencies]
-bootloader_api = "0.11.12"
+bootloader_api = "=0.11.17"
 bitbybit = "1.4.0"
 arbitrary-int = "2.0.0"
 bitvec = { version = "1.0.1", default-features = false }

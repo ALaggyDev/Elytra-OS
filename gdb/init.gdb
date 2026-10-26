@@ -1,3 +1,5 @@
+file target/kernel -o 0xffffffff80000000
+
 target remote :1234
 
 # load rust pretty printers

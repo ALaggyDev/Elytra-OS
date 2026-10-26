@@ -33,12 +33,32 @@ Progress:
 
 # Running
 
-To run Elytra OS using QEMU, you can use the following command. Cargo will automatically download Rust nightly and the required dependencies.
+Elytra OS features a simple build system powered by [xtask](https://github.com/matklad/cargo-xtask). Cargo can automatically download Rust nightly and the required dependencies.
 
-```sh
-cargo run -- [--wsl] [--gdb] [--kvm]
+Run `cargo kernel` for a list of subcommands.
+
+```
+The ElytraOS build system
+
+Commands:
+  build   Build the kernel without running it
+  run     Build and run the kernel in QEMU
+  fmt     Run cargo fmt
+  clippy  Run cargo clippy
+  help    Print this message or the help of the given subcommand(s)
 ```
 
--   `--wsl`: Run QEMU in WSL. You probably want to use this if you're on Windows.
--   `--gdb`: Automatically start GDB and connect it to QEMU.
--   `--kvm`: Use KVM for hardware acceleration. This is highly recommended as it will significantly improve performance. Requires root privileges.
+To run the kernel in QEMU, use `cargo kernel run`.
+
+```
+Build and run the kernel in QEMU
+
+Options:
+      --release    Build the kernel with optimizations
+      --wsl        Use WSL to run QEMU
+      --gdb        Listen and wait for a GDB connection in QEMU
+      --nographic  Disable graphical output in QEMU
+      --kvm        KVM acceleration (need root privileges)
+```
+
+Tested version: `rustc 1.101.0-nightly (12433c307 2026-10-24)`.
